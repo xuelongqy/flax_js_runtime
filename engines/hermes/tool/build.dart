@@ -129,8 +129,8 @@ Future<void> _prepareAssets(
     'architecture': 'arm64',
     'minimumOSVersion': '15.0',
     'entrySymbol': 'flax_hermes_get_api',
-    'hermesRevision': input['revision'],
-    'patches': upstream['patches'],
+    'hermesRevision': (input['upstream'] as Map<String, Object?>)['revision'],
+    'patches': (input['upstream'] as Map<String, Object?>)['patches'],
     'sha256': (await sha256.bind(File(target).openRead()).first).toString(),
   };
   File(p.join(output.path, 'manifest.json')).writeAsStringSync(
