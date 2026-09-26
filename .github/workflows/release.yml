@@ -9,7 +9,7 @@ on:
   push:
     tags: ['v*']
 permissions:
-  contents: write
+  contents: read
 env:
   RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 jobs:
@@ -39,6 +39,24 @@ jobs:
           VERSION="${RELEASE_VERSION#v}"
           test "$VERSION" = "0.1.0"
           test -s "dist/flax-js-runtime-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz"
+      - name: Preserve release package
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: runtime-${{ matrix.engine }}
+          path: dist/*.tar.gz
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v5
+        with:
+          pattern: runtime-*
+          path: dist
+          merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ inputs.version || '0.1.0' }}
