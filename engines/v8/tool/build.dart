@@ -112,7 +112,7 @@ Future<void> main() async {
   );
   await _run('git', ['diff', 'HEAD', '--exit-code'], directory: source);
 
-  final patch = '${package.path}/native/v8-jsi.patch';
+  final patch = '${package.path}/patches/v8-jsi.patch';
   final reversed = await Process.run('git', [
     'apply',
     '--reverse',
