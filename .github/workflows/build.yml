@@ -1,6 +1,14 @@
 name: Engine builds
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'abi/**'
+      - 'engines/**'
+      - 'tool/build.dart'
+      - 'tool/package.dart'
+      - '.github/workflows/build.yml'
   pull_request:
     paths:
       - 'abi/**'
