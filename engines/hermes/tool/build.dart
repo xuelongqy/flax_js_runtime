@@ -16,7 +16,8 @@ Future<void> main() async {
   final input = jsonDecode(
     File(p.join(package.path, 'engine.json')).readAsStringSync(),
   ) as Map<String, Object?>;
-  final revision = input['revision'] as String;
+  final upstream = input['upstream'] as Map<String, Object?>;
+  final revision = upstream['revision'] as String;
   final cache = Directory(p.join(package.path, '.cache/native'))
     ..createSync(recursive: true);
   final archive = File(p.join(cache.path, 'source.tar.gz'));
@@ -29,18 +30,18 @@ Future<void> main() async {
       '2',
       '--output',
       partial.path,
-      input['archive'] as String,
+      upstream['archive'] as String,
     ]);
-    await _requireSha256(partial, input['sha256'] as String, 'Hermes archive');
+    await _requireSha256(partial, upstream['sha256'] as String, 'Hermes archive');
     partial.renameSync(archive.path);
   }
   await _requireSha256(
     archive,
-    input['sha256'] as String,
+    upstream['sha256'] as String,
     'Cached Hermes archive',
   );
   final source = Directory(p.join(cache.path, 'hermes-$revision'));
-  final patches = (input['patches'] as List<Object?>)
+  final patches = (upstream['patches'] as List<Object?>)
       .cast<Map<String, Object?>>();
   for (final patch in patches) {
     await _requireSha256(
@@ -129,7 +130,7 @@ Future<void> _prepareAssets(
     'minimumOSVersion': '15.0',
     'entrySymbol': 'flax_hermes_get_api',
     'hermesRevision': input['revision'],
-    'patches': input['patches'],
+    'patches': upstream['patches'],
     'sha256': (await sha256.bind(File(target).openRead()).first).toString(),
   };
   File(p.join(output.path, 'manifest.json')).writeAsStringSync(
