@@ -65,7 +65,7 @@ Future<void> main() async {
   if (!Platform.isMacOS || Abi.current() != Abi.macosArm64) {
     throw UnsupportedError('Native runtime verification requires macOS arm64.');
   }
-  final package = Directory.fromUri(Platform.script.resolve('../../'));
+  final package = Directory.fromUri(Platform.script.resolve('../'));
   final core = Directory.fromUri(Platform.script.resolve('../../../abi/'));
   final input = jsonDecode(
     File('${package.path}/engine.json').readAsStringSync(),
