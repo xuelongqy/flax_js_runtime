@@ -1,9 +1,17 @@
 name: Runtime release
 on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Runtime version to publish (for example 0.1.0)
+        required: true
+        default: 0.1.0
   push:
     tags: ['v*']
 permissions:
   contents: write
+env:
+  RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
 jobs:
   build:
     strategy:
@@ -25,6 +33,13 @@ jobs:
       - run: dart pub get
       - run: dart run tool/build.dart --engine=${{ matrix.engine }}
       - run: dart run tool/package.dart --engine=${{ matrix.engine }}
+      - name: Validate release version
+        run: |
+          VERSION="${RELEASE_VERSION#v}"
+          test "$VERSION" = "0.1.0"
+          test -s "dist/flax-js-runtime-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz"
       - uses: softprops/action-gh-release@v2
         with:
+          tag_name: v${{ inputs.version || '0.1.0' }}
+          target_commitish: ${{ github.sha }}
           files: dist/*.tar.gz
