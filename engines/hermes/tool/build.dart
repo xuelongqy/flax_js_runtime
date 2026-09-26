@@ -112,7 +112,7 @@ Future<void> _requireSha256(File file, String expected, String label) async {
 Future<void> _prepareAssets(
   Directory package,
   Directory core,
-  Directory upstream,
+  Directory upstreamSource,
   Map<String, Object?> input,
   String build,
 ) async {
@@ -138,7 +138,7 @@ Future<void> _prepareAssets(
   );
   final notices = Directory(p.join(output.path, 'notices'));
   if (notices.existsSync()) notices.deleteSync(recursive: true);
-  _copyNotices(upstream, notices);
+  _copyNotices(upstreamSource, notices);
   _writeConsolidatedNotices(
     notices,
     File(p.join(package.path, 'THIRD_PARTY_NOTICES.txt')),
