@@ -1,0 +1,27 @@
+name: Runtime release
+on:
+  push:
+    tags: ['v*']
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      matrix:
+        engine: [hermes, v8]
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: true
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+      - run: brew install cmake ninja
+      - run: dart pub get
+      - run: dart run tool/build.dart --engine=${{ matrix.engine }}
+      - run: dart run tool/package.dart --engine=${{ matrix.engine }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: dist/*.tar.gz
