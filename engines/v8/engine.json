@@ -1,1 +1,34 @@
-{"schemaVersion":1,"id":"v8","status":"stable","engineId":2,"entrySymbol":"flax_v8_get_api","upstream":{"version":"15.2.124.21","revision":"4323497a6a73839e6d5260f6acd7ec0212cb3321"},"adapter":{"repository":"https://github.com/microsoft/v8-jsi","revision":"062ac626ac46da5b7730827466682919bdb14461","jsiRevision":"3477757eb2475555cf8d8df24bfb1deb0613880d","depotToolsRevision":"da08833a5dfea59cd32248f0ed27a60cfd310e40"},"platforms":["macos-arm64"],"capabilities":{"jit":true,"bytecode":true}}
+{
+  "name": "V8",
+  "version": "15.2.124.21",
+  "revision": "4323497a6a73839e6d5260f6acd7ec0212cb3321",
+  "archive": "https://codeload.github.com/v8/v8/tar.gz/4323497a6a73839e6d5260f6acd7ec0212cb3321",
+  "sha256": "8dcedec0d1e8ad795033f338f1a9a57a8d23307c6591d405a7f4702146766ed5",
+  "adapterRevision": "062ac626ac46da5b7730827466682919bdb14461",
+  "adapterArchive": "https://codeload.github.com/microsoft/v8-jsi/tar.gz/062ac626ac46da5b7730827466682919bdb14461",
+  "adapterSha256": "18ad9e26bd9b289324b59b1c47531181da5a105a744b29bea7658649eff31d14",
+  "depotToolsRevision": "da08833a5dfea59cd32248f0ed27a60cfd310e40",
+  "jsiRevision": "3477757eb2475555cf8d8df24bfb1deb0613880d",
+  "gnArgs": "is_debug = false\ntarget_cpu = \"arm64\"\nv8_target_cpu = \"arm64\"\nv8_monolithic = true\nv8_monolithic_for_shared_library = true\nis_component_build = false\nv8_use_external_startup_data = false\nv8_enable_i18n_support = false\nuse_custom_libcxx = false\nv8_enable_sandbox = false\nv8_enable_pointer_compression = false\nsymbol_level = 0\ntreat_warnings_as_errors = false\nmac_deployment_target = \"15.0\"\nuse_remoteexec = false\n",
+  "patches": [
+    "v8-jsi.patch"
+  ],
+  "hostTools": {
+    "cmake": "4.4.3",
+    "ninja": "1.13.2",
+    "xcode": "26.6",
+    "macosSdk": "26.5"
+  },
+  "schemaVersion": 1,
+  "id": "v8",
+  "status": "stable",
+  "engineId": 2,
+  "entrySymbol": "flax_v8_get_api",
+  "platforms": [
+    "macos-arm64"
+  ],
+  "capabilities": {
+    "jit": true,
+    "bytecode": true
+  }
+}
