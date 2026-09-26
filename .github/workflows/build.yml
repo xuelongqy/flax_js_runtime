@@ -1,0 +1,34 @@
+name: Engine builds
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'abi/**'
+      - 'engines/**'
+      - 'tool/build.dart'
+      - 'tool/package.dart'
+permissions:
+  contents: read
+jobs:
+  engine:
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [hermes, v8]
+    runs-on: macos-15
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+      - run: brew install cmake ninja
+      - run: dart pub get
+      - run: dart run tool/build.dart --engine=${{ matrix.engine }}
+      - run: dart run tool/package.dart --engine=${{ matrix.engine }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: ${{ matrix.engine }}-macos-arm64
+          path: dist/*.tar.gz
