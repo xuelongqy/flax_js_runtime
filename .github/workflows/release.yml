@@ -15,6 +15,7 @@ env:
 jobs:
   build:
     strategy:
+      fail-fast: false
       matrix:
         engine: [hermes, v8]
     runs-on: ${{ matrix.engine == 'v8' && 'macos-26' || 'macos-15' }}
