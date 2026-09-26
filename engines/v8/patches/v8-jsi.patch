@@ -1,0 +1,508 @@
+diff --git a/src/jsi_abi/JsiAbiRuntime.cpp b/src/jsi_abi/JsiAbiRuntime.cpp
+index b26dda34..2605b5de 100644
+--- a/src/jsi_abi/JsiAbiRuntime.cpp
++++ b/src/jsi_abi/JsiAbiRuntime.cpp
+@@ -181,6 +181,8 @@ class JsiAbiRuntime : public facebook::jsi::Runtime {
+   facebook::jsi::PropNameID createPropNameIDFromUtf8(
+       const uint8_t *utf8,
+       size_t length) override;
++  facebook::jsi::PropNameID createPropNameIDFromUtf16(
++      const char16_t *str, size_t length) override;
+   facebook::jsi::PropNameID createPropNameIDFromString(
+       const facebook::jsi::String &str) override;
+ #if JSI_VERSION >= 5
+@@ -211,6 +213,9 @@ class JsiAbiRuntime : public facebook::jsi::Runtime {
+   facebook::jsi::String createStringFromUtf8(
+       const uint8_t *utf8,
+       size_t length) override;
++  facebook::jsi::String createStringFromUtf16(
++      const char16_t *str, size_t length) override;
++  std::u16string utf16(const facebook::jsi::String &) override;
+   std::string utf8(const facebook::jsi::String &) override;
+ 
+   facebook::jsi::Object createObject() override;
+@@ -278,6 +283,7 @@ class JsiAbiRuntime : public facebook::jsi::Runtime {
+       std::shared_ptr<facebook::jsi::MutableBuffer> buffer) override;
+ #endif
+   size_t size(const facebook::jsi::Array &) override;
++  bool detached(const facebook::jsi::ArrayBuffer &) override;
+   size_t size(const facebook::jsi::ArrayBuffer &) override;
+   uint8_t *data(const facebook::jsi::ArrayBuffer &) override;
+   facebook::jsi::Value getValueAtIndex(
+@@ -828,7 +834,11 @@ facebook::jsi::PropNameID JsiAbiRuntime::cloneToJSIPropNameID(
+ //==============================================================================
+ 
+ JsiAbiRuntime::JsiAbiRuntime(jsi_runtime *abiRuntime)
+-    : vt_(abiRuntime->vt), abiRt_(abiRuntime) {}
++    : vt_(abiRuntime->vt), abiRt_(abiRuntime) {
++  if (vt_->get_abi_version(abiRt_) < JSI_ABI_VERSION) {
++    throw facebook::jsi::JSINativeException("JSI ABI 2 is required for native buffer detachment");
++  }
++}
+ 
+ JsiAbiRuntime::~JsiAbiRuntime() {
+   vt_->release(abiRt_);
+@@ -971,6 +981,11 @@ facebook::jsi::PropNameID JsiAbiRuntime::createPropNameIDFromUtf8(
+       new ManagedPointerHolder(abi::get_propnameid(result).pointer));
+ }
+ 
++facebook::jsi::PropNameID JsiAbiRuntime::createPropNameIDFromUtf16(
++    const char16_t *str, size_t length) {
++  return createPropNameIDFromString(createStringFromUtf16(str, length));
++}
++
+ facebook::jsi::PropNameID JsiAbiRuntime::createPropNameIDFromString(
+     const facebook::jsi::String &str) {
+   auto result =
+@@ -1077,6 +1092,23 @@ facebook::jsi::String JsiAbiRuntime::createStringFromUtf8(
+       new ManagedPointerHolder(abi::get_string(result).pointer));
+ }
+ 
++facebook::jsi::String JsiAbiRuntime::createStringFromUtf16(
++    const char16_t *str, size_t length) {
++  auto result = vt_->create_string_from_utf16(
++      abiRt_, reinterpret_cast<const uint16_t *>(str), length);
++  checkResult(result);
++  return make<facebook::jsi::String>(
++      new ManagedPointerHolder(abi::get_string(result).pointer));
++}
++
++std::u16string JsiAbiRuntime::utf16(const facebook::jsi::String &str) {
++  StringByteBuffer gb;
++  vt_->get_utf16_from_string(abiRt_, toABIString(str), &gb);
++  std::u16string result(gb.used / sizeof(char16_t), u'\0');
++  if (gb.used) std::memcpy(result.data(), gb.data, gb.used);
++  return result;
++}
++
+ std::string JsiAbiRuntime::utf8(const facebook::jsi::String &str) {
+   StringByteBuffer gb;
+   vt_->get_utf8_from_string(abiRt_, toABIString(str), &gb);
+@@ -1321,6 +1353,12 @@ size_t JsiAbiRuntime::size(const facebook::jsi::Array &arr) {
+   return vt_->get_array_length(abiRt_, toABIArray(arr));
+ }
+ 
++bool JsiAbiRuntime::detached(const facebook::jsi::ArrayBuffer &ab) {
++  auto result = vt_->is_arraybuffer_detached(abiRt_, toABIArrayBuffer(ab));
++  checkResult(result);
++  return abi::get_bool(result);
++}
++
+ size_t JsiAbiRuntime::size(const facebook::jsi::ArrayBuffer &ab) {
+   auto result = vt_->get_arraybuffer_size(abiRt_, toABIArrayBuffer(ab));
+   if (abi::is_error(result))
+@@ -1491,7 +1529,12 @@ std::unique_ptr<facebook::jsi::Runtime> makeJsiAbiRuntime(
+     throw facebook::jsi::JSINativeException(
+         "JSI ABI runtime creation failed: version unsupported or configure error");
+   }
+-  return std::make_unique<JsiAbiRuntime>(rt);
++  try {
++    return std::make_unique<JsiAbiRuntime>(rt);
++  } catch (...) {
++    rt->vt->release(rt);
++    throw;
++  }
+ }
+ 
+ std::unique_ptr<facebook::jsi::Runtime> wrapJsiRuntime(
+@@ -1499,7 +1542,12 @@ std::unique_ptr<facebook::jsi::Runtime> wrapJsiRuntime(
+   // Add a ref on entry; the wrapper adopts that fresh ref. The caller's
+   // ref (if any) is independent.
+   abiRuntime->vt->add_ref(abiRuntime);
+-  return std::make_unique<JsiAbiRuntime>(abiRuntime);
++  try {
++    return std::make_unique<JsiAbiRuntime>(abiRuntime);
++  } catch (...) {
++    abiRuntime->vt->release(abiRuntime);
++    throw;
++  }
+ }
+ 
+ jsi_runtime *getAbiRuntime(facebook::jsi::Runtime &runtime) noexcept {
+diff --git a/src/jsi_abi/jsi_abi.h b/src/jsi_abi/jsi_abi.h
+index 9ff8884a..15381ce3 100644
+--- a/src/jsi_abi/jsi_abi.h
++++ b/src/jsi_abi/jsi_abi.h
+@@ -74,7 +74,7 @@ extern "C" {
+  * the runtime to it or fails if it exceeds the implementation's max (Model B).
+  *==========================================================================*/
+ 
+-#define JSI_ABI_VERSION 1u
++#define JSI_ABI_VERSION 2u
+ 
+ /*==========================================================================
+  * Forward Declarations
+@@ -894,6 +894,10 @@ struct jsi_runtime_vtable {
+       struct jsi_runtime *rt,
+       struct jsi_bigint bigint,
+       uint32_t radix);
++
++  /* Flax-local ABI 2 extension; keep all ABI 1 slots in place. */
++  struct jsi_bool_or_error(JSI_CDECL *is_arraybuffer_detached)(
++      struct jsi_runtime *rt, struct jsi_arraybuffer ab);
+ };
+ 
+ /*==========================================================================
+diff --git a/src/jsi_abi/jsi_abi_v8.cpp b/src/jsi_abi/jsi_abi_v8.cpp
+index 722a6893..2025d181 100644
+--- a/src/jsi_abi/jsi_abi_v8.cpp
++++ b/src/jsi_abi/jsi_abi_v8.cpp
+@@ -220,14 +220,19 @@ struct HandleWrapper : public jsi_pointer {
+   }
+   static constexpr jsi_pointer_vtable pointerVt{invalidate};
+ 
++  v8::Isolate *owner;
+   v8::Persistent<V8Type> persistent;
+ 
+   HandleWrapper(v8::Isolate *iso, v8::Local<V8Type> local)
+-      : jsi_pointer{&pointerVt} {
++      : jsi_pointer{&pointerVt}, owner(iso) {
+     persistent.Reset(iso, local);
+   }
+ 
+-  ~HandleWrapper() { persistent.Reset(); }
++  ~HandleWrapper() {
++    v8::Locker locker(owner);
++    v8::Isolate::Scope scope(owner);
++    persistent.Reset();
++  }
+ 
+   v8::Local<V8Type> get(v8::Isolate *isolate) const {
+     return persistent.Get(isolate);
+@@ -248,14 +253,19 @@ struct PreparedScriptImpl : public jsi_prepared_javascript {
+   }
+   static constexpr jsi_prepared_javascript_vtable preparedVt{release};
+ 
++  v8::Isolate *owner;
+   v8::Persistent<v8::UnboundScript> persistent;
+ 
+   PreparedScriptImpl(v8::Isolate *iso, v8::Local<v8::UnboundScript> local)
+-      : jsi_prepared_javascript{&preparedVt} {
++      : jsi_prepared_javascript{&preparedVt}, owner(iso) {
+     persistent.Reset(iso, local);
+   }
+ 
+-  ~PreparedScriptImpl() { persistent.Reset(); }
++  ~PreparedScriptImpl() {
++    v8::Locker locker(owner);
++    v8::Isolate::Scope scope(owner);
++    persistent.Reset();
++  }
+ 
+   v8::Local<v8::UnboundScript> get(v8::Isolate *isolate) const {
+     return persistent.Get(isolate);
+@@ -269,14 +279,19 @@ struct PropNameIdHandle : public jsi_pointer {
+   }
+   static constexpr jsi_pointer_vtable pointerVt{invalidate};
+ 
++  v8::Isolate *owner;
+   v8::Persistent<v8::Value> persistent; // String or Symbol
+ 
+   PropNameIdHandle(v8::Isolate *iso, v8::Local<v8::Value> local)
+-      : jsi_pointer{&pointerVt} {
++      : jsi_pointer{&pointerVt}, owner(iso) {
+     persistent.Reset(iso, local);
+   }
+ 
+-  ~PropNameIdHandle() { persistent.Reset(); }
++  ~PropNameIdHandle() {
++    v8::Locker locker(owner);
++    v8::Isolate::Scope scope(owner);
++    persistent.Reset();
++  }
+ 
+   v8::Local<v8::Value> get(v8::Isolate *isolate) const {
+     return persistent.Get(isolate);
+@@ -290,15 +305,20 @@ struct WeakObjectHandle : public jsi_pointer {
+   }
+   static constexpr jsi_pointer_vtable pointerVt{invalidate};
+ 
++  v8::Isolate *owner;
+   v8::Persistent<v8::Object> persistent;
+ 
+   WeakObjectHandle(v8::Isolate *iso, v8::Local<v8::Object> local)
+-      : jsi_pointer{&pointerVt} {
++      : jsi_pointer{&pointerVt}, owner(iso) {
+     persistent.Reset(iso, local);
+     persistent.SetWeak();
+   }
+ 
+-  ~WeakObjectHandle() { persistent.Reset(); }
++  ~WeakObjectHandle() {
++    v8::Locker locker(owner);
++    v8::Isolate::Scope scope(owner);
++    persistent.Reset();
++  }
+ 
+   v8::Local<v8::Object> get(v8::Isolate *isolate) const {
+     return persistent.Get(isolate);
+@@ -731,7 +751,7 @@ struct AbiHostObjectProxy {
+ 
+   static void Enumerator(const v8::PropertyCallbackInfo<v8::Array> &info) {
+     AbiHostObjectProxy *proxy =
+-        GetProxyFromThis(info.This(), info.GetIsolate());
++        GetProxyFromThis(info.Holder(), info.GetIsolate());
+     if (!proxy || !proxy->hostObject) {
+       info.GetReturnValue().Set(v8::Array::New(info.GetIsolate()));
+       return;
+@@ -767,7 +787,7 @@ private:
+   template <typename T>
+   static AbiHostObjectProxy *
+   GetProxy(const v8::PropertyCallbackInfo<T> &info) {
+-    return GetProxyFromThis(info.This(), info.GetIsolate());
++    return GetProxyFromThis(info.Holder(), info.GetIsolate());
+   }
+ 
+   static AbiHostObjectProxy *GetProxyFromThis(v8::Local<v8::Object> obj,
+@@ -785,7 +805,7 @@ private:
+       return nullptr;
+ 
+     v8::Local<v8::External> data = v8::Local<v8::External>::Cast(externalValue);
+-    return reinterpret_cast<AbiHostObjectProxy *>(data->Value());
++    return reinterpret_cast<AbiHostObjectProxy *>(data->Value(v8::kExternalPointerTypeTagDefault));
+   }
+ };
+ 
+@@ -871,6 +891,18 @@ JsiRuntimeState *JsiRuntimeState::create(const jsi_config_s *config) {
+   if (!isolate)
+     return nullptr;
+ 
++  v8::Locker creationLocker(isolate);
++  if (config && config->enable_jit_tracing) {
++    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
++        [](const v8::JitCodeEvent* event) {
++          if (event->type == v8::JitCodeEvent::CODE_ADDED &&
++              event->code_type == v8::JitCodeEvent::JIT_CODE &&
++              std::string(event->name.str, event->name.len).find("flaxJitProbe") != std::string::npos) {
++            std::puts("FLAX_V8_JIT: machine code generated for flaxJitProbe");
++            std::fflush(stdout);
++          }
++        });
++  }
+   v8::Isolate::Scope isolate_scope(isolate);
+   v8::HandleScope handle_scope(isolate);
+   const bool fromSnapshot =
+@@ -1009,7 +1041,14 @@ struct V8Scope {
+   V8Scope(JsiRuntimeState *state)
+       : locker(makeLocker(state)), isolate_scope(state->isolate),
+         handle_scope(state->isolate),
+-        context_scope(state->getContextLocal()) {}
++        context_scope(state->getContextLocal()) {
++    // Nested bridge callbacks must not run unrelated foreground tasks.
++    if (depth++ == 0) v8rt::V8PlatformHolder::pumpForegroundTasks(state->isolate);
++  }
++
++  ~V8Scope() { --depth; }
++
++  static thread_local unsigned depth;
+ 
+  private:
+   static std::optional<v8::Locker> makeLocker(JsiRuntimeState *state) {
+@@ -1019,6 +1058,8 @@ struct V8Scope {
+   }
+ };
+ 
++thread_local unsigned V8Scope::depth = 0;
++
+ //==============================================================================
+ // Host Function Wrapper
+ //==============================================================================
+@@ -1070,6 +1111,9 @@ struct HostFunctionContext {
+ // Deferred definition — requires HostFunctionContext and AbiHostObjectProxy
+ // to be complete types.
+ JsiRuntimeState::~JsiRuntimeState() {
++  {
++  v8::Locker cleanupLocker(isolate);
++  v8::Isolate::Scope cleanupScope(isolate);
+   // tear down the attached Node-API surface (if any) before disposing
+   // V8 state. The destroy callback owns deleting the attached object.
+   if (attached_owner_destroy) {
+@@ -1113,10 +1157,10 @@ JsiRuntimeState::~JsiRuntimeState() {
+   hostFunctionKey.Reset();
+   context.Reset();
+ 
+-  if (isolate) {
+-    delete isolateData;
+-    isolate->Dispose();
++  delete isolateData;
+   }
++  v8rt::V8PlatformHolder::notifyIsolateShutdown(isolate);
++  isolate->Dispose();
+ 
+   // release the consumer-supplied script cache after the isolate is gone
+   // (no more cache calls can be in flight). Runs in the consumer's CRT
+@@ -1136,10 +1180,6 @@ JsiRuntimeState::~JsiRuntimeState() {
+ 
+ // Adapted from V8 d8 utility code (was V8Runtime::PromiseRejectCallback).
+ void JsiRuntimeState::PromiseRejectCallback(v8::PromiseRejectMessage data) {
+-  if (data.GetEvent() == v8::kPromiseRejectAfterResolved ||
+-      data.GetEvent() == v8::kPromiseResolveAfterResolved) {
+-    return;
+-  }
+   v8::Local<v8::Promise> promise = data.GetPromise();
+   v8::Isolate *isolate = v8::Isolate::GetCurrent();
+   v8::MaybeLocal<v8::Context> maybeContext = promise->GetCreationContext(isolate);
+@@ -1198,7 +1238,7 @@ void JSI_CDECL HostFunctionCallbackTrampoline(
+   v8::HandleScope handle_scope(isolate);
+ 
+   v8::Local<v8::External> data = v8::Local<v8::External>::Cast(info.Data());
+-  auto *ctx = static_cast<HostFunctionContext *>(data->Value());
++  auto *ctx = static_cast<HostFunctionContext *>(data->Value(v8::kExternalPointerTypeTagDefault));
+ 
+   std::vector<jsi_value> args;
+   args.reserve(info.Length());
+@@ -1252,7 +1292,7 @@ NativeStateWrapper *getNativeStateWrapper(JsiRuntimeState *state,
+   v8::Local<v8::Value> val = maybeVal.ToLocalChecked();
+   if (!val->IsExternal())
+     return nullptr;
+-  return static_cast<NativeStateWrapper *>(val.As<v8::External>()->Value());
++  return static_cast<NativeStateWrapper *>(val.As<v8::External>()->Value(v8::kExternalPointerTypeTagDefault));
+ }
+ 
+ //==============================================================================
+@@ -1620,7 +1660,7 @@ jsi_bool_or_error JSI_CDECL jsi_drain_microtasks(jsi_runtime *rt,
+   if (state->isolate->GetMicrotasksPolicy() == v8::MicrotasksPolicy::kExplicit)
+     state->isolate->PerformMicrotaskCheckpoint();
+ 
+-  return abi::create_bool_or_error(false);
++  return abi::create_bool_or_error(true);
+ }
+ 
+ jsi_error_code JSI_CDECL jsi_queue_microtask(jsi_runtime *rt,
+@@ -1676,6 +1716,12 @@ jsi_string_or_error JSI_CDECL jsi_create_string_from_utf16(
+   auto *state = getState(rt);
+   V8Scope scope(state);
+   v8::Local<v8::String> v8str;
++  if (len > static_cast<size_t>(v8::String::kMaxLength) || (!utf16 && len)) {
++    state->setNativeError("Invalid UTF-16 string length or buffer");
++    return abi::create_string_or_error(jsi_error_native);
++  }
++  static constexpr uint16_t empty = 0;
++  if (!utf16) utf16 = &empty;
+   if (!v8::String::NewFromTwoByte(state->isolate, utf16,
+                                    v8::NewStringType::kNormal,
+                                    static_cast<int>(len))
+@@ -2304,7 +2350,7 @@ jsi_function_or_error JSI_CDECL jsi_create_function_from_host_function(
+   v8::Isolate *isolate = state->isolate;
+ 
+   auto *ctx = new HostFunctionContext(rt, hf);
+-  v8::Local<v8::External> data = v8::External::New(isolate, ctx);
++  v8::Local<v8::External> data = v8::External::New(isolate, ctx, v8::kExternalPointerTypeTagDefault);
+ 
+   v8::Local<v8::Function> func;
+   if (!v8::Function::New(state->getContextLocal(),
+@@ -2343,7 +2389,7 @@ jsi_host_function *JSI_CDECL jsi_get_host_function(jsi_runtime *rt,
+           .ToLocal(&privateVal) &&
+       privateVal->IsExternal()) {
+     auto *ctx = static_cast<HostFunctionContext *>(
+-        v8::Local<v8::External>::Cast(privateVal)->Value());
++        v8::Local<v8::External>::Cast(privateVal)->Value(v8::kExternalPointerTypeTagDefault));
+     return ctx->hostFunction;
+   }
+   return nullptr;
+@@ -2368,11 +2414,11 @@ jsi_create_object_from_host_object(jsi_runtime *rt, jsi_host_object *ho) {
+     return abi::create_object_or_error(jsi_error_js);
+ 
+   auto *proxy = new AbiHostObjectProxy(rt, ho, isolate, newObject);
+-  newObject->SetInternalField(0, v8::External::New(isolate, proxy));
++  newObject->SetInternalField(0, v8::External::New(isolate, proxy, v8::kExternalPointerTypeTagDefault));
+ 
+   v8::Local<v8::Private> hostObjectKey = state->getHostObjectKey();
+   newObject->SetPrivate(context, hostObjectKey,
+-                        v8::External::New(isolate, proxy));
++                        v8::External::New(isolate, proxy, v8::kExternalPointerTypeTagDefault));
+ 
+   return abi::create_object_or_error(
+       static_cast<jsi_pointer *>(new ObjectHandle(isolate, newObject)));
+@@ -2391,7 +2437,7 @@ jsi_host_object *JSI_CDECL jsi_get_host_object(jsi_runtime *rt,
+   if (v8obj->GetPrivate(context, hostObjectKey).ToLocal(&privateValue) &&
+       privateValue->IsExternal()) {
+     auto *proxy = reinterpret_cast<AbiHostObjectProxy *>(
+-        v8::Local<v8::External>::Cast(privateValue)->Value());
++        v8::Local<v8::External>::Cast(privateValue)->Value(v8::kExternalPointerTypeTagDefault));
+     return proxy ? proxy->hostObject : nullptr;
+   }
+   return nullptr;
+@@ -2440,7 +2486,7 @@ jsi_error_code JSI_CDECL jsi_set_native_state(jsi_runtime *rt,
+     existing->state = ns;
+   } else {
+     auto *wrapper = new NativeStateWrapper(isolate, v8obj, ns);
+-    v8::Local<v8::External> external = v8::External::New(isolate, wrapper);
++    v8::Local<v8::External> external = v8::External::New(isolate, wrapper, v8::kExternalPointerTypeTagDefault);
+     v8obj->SetPrivate(context, key, external).Check();
+   }
+   return jsi_no_error;
+@@ -2608,6 +2654,18 @@ uint64_t JSI_CDECL jsi_bigint_to_uint64(jsi_runtime *rt, jsi_bigint bigint,
+   return result;
+ }
+ 
++jsi_bool_or_error JSI_CDECL jsi_is_arraybuffer_detached(
++    jsi_runtime *rt, jsi_arraybuffer ab) {
++  auto *state = getState(rt);
++  V8Scope scope(state);
++  auto object = toObjectHandle({ab.pointer})->get(state->isolate);
++  if (!object->IsArrayBuffer()) {
++    state->setNativeError("Expected an ArrayBuffer");
++    return abi::create_bool_or_error(jsi_error_native);
++  }
++  return abi::create_bool_or_error(object.As<v8::ArrayBuffer>()->WasDetached());
++}
++
+ jsi_string_or_error JSI_CDECL jsi_bigint_to_string(jsi_runtime *rt,
+                                                     jsi_bigint bigint,
+                                                     uint32_t radix) {
+@@ -2767,6 +2825,7 @@ const jsi_runtime_vtable g_vtable = {
+     /* bigint_to_int64 */ jsi_bigint_to_int64,
+     /* bigint_to_uint64 */ jsi_bigint_to_uint64,
+     /* bigint_to_string */ jsi_bigint_to_string,
++    /* is_arraybuffer_detached */ jsi_is_arraybuffer_detached,
+ };
+ 
+ } // anonymous namespace
+diff --git a/src/v8_core.cpp b/src/v8_core.cpp
+index a7ccc9b9..a49c21a8 100644
+--- a/src/v8_core.cpp
++++ b/src/v8_core.cpp
+@@ -37,7 +37,8 @@ v8::Isolate* createIsolate(const IsolateConfig& config) {
+   v8::Isolate::CreateParams create_params;
+ 
+   // Set up array buffer allocator
+-  create_params.array_buffer_allocator = v8::ArrayBuffer::Allocator::NewDefaultAllocator();
++  create_params.array_buffer_allocator_shared =
++      std::shared_ptr<v8::ArrayBuffer::Allocator>(v8::ArrayBuffer::Allocator::NewDefaultAllocator());
+ 
+   // Configure heap constraints if specified
+   if (config.initial_heap_size > 0 || config.maximum_heap_size > 0) {
+@@ -52,7 +53,6 @@ v8::Isolate* createIsolate(const IsolateConfig& config) {
+   // StartupData descriptor) can be created BEFORE Isolate::Initialize.
+   v8::Isolate* isolate = v8::Isolate::Allocate();
+   if (isolate == nullptr) {
+-    delete create_params.array_buffer_allocator;
+     return nullptr;
+   }
+ 
+diff --git a/src/v8_core.h b/src/v8_core.h
+index 7add937a..3d74107e 100644
+--- a/src/v8_core.h
++++ b/src/v8_core.h
+@@ -101,6 +101,20 @@ class V8PlatformHolder {
+     return is_initialized_ && !is_disposed_;
+   }
+ 
++  static std::shared_ptr<v8::TaskRunner> foregroundTaskRunner(v8::Isolate* isolate) {
++    return platform_->GetForegroundTaskRunner(isolate);
++  }
++
++  static void pumpForegroundTasks(v8::Isolate* isolate) {
++    // Non-blocking and bounded: run only while the host has entered the runtime.
++    for (int i = 0; i < 64 && v8::platform::PumpMessageLoop(
++             platform_.get(), isolate, v8::platform::MessageLoopBehavior::kDoNotWait); ++i) {}
++  }
++
++  static void notifyIsolateShutdown(v8::Isolate* isolate) {
++    v8::platform::NotifyIsolateShutdown(platform_.get(), isolate);
++  }
++
+   V8PlatformHolder() = delete;
+   V8PlatformHolder(const V8PlatformHolder&) = delete;
+   V8PlatformHolder& operator=(const V8PlatformHolder&) = delete;
