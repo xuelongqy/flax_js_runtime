@@ -1,1 +1,27 @@
-{"schemaVersion":1,"id":"hermes","status":"stable","engineId":1,"entrySymbol":"flax_hermes_get_api","upstream":{"repository":"https://github.com/facebook/hermes","revision":"3477757eb2475555cf8d8df24bfb1deb0613880d","archive":"https://codeload.github.com/facebook/hermes/tar.gz/3477757eb2475555cf8d8df24bfb1deb0613880d","sha256":"6fdf2874c8a2d1c814fb59a88e00c87251bb970cd9d140f470ec7eac7d0e9a75"},"platforms":["macos-arm64"],"capabilities":{"jit":false,"bytecode":true}}
+{
+  "schemaVersion": 1,
+  "id": "hermes",
+  "status": "stable",
+  "engineId": 1,
+  "entrySymbol": "flax_hermes_get_api",
+  "upstream": {
+    "repository": "https://github.com/facebook/hermes",
+    "revision": "3477757eb2475555cf8d8df24bfb1deb0613880d",
+    "archive": "https://codeload.github.com/facebook/hermes/tar.gz/3477757eb2475555cf8d8df24bfb1deb0613880d",
+    "sha256": "6fdf2874c8a2d1c814fb59a88e00c87251bb970cd9d140f470ec7eac7d0e9a75",
+    "name": "Hermes",
+    "patches": [
+      {
+        "file": "hermes-transfer.patch",
+        "sha256": "d70518a5775306c4d3ff92d3dd27922ab6a3fcabae84197d18af64e4f2a248f5"
+      }
+    ]
+  },
+  "platforms": [
+    "macos-arm64"
+  ],
+  "capabilities": {
+    "jit": false,
+    "bytecode": true
+  }
+}
