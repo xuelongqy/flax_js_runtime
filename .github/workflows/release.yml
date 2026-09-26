@@ -1,17 +1,14 @@
 name: Runtime release
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: Runtime version to publish (for example 0.1.0)
-        required: true
-        default: 0.1.0
   push:
-    tags: ['v*']
+    branches: [main]
+    paths:
+      - 'release.json'
+      - '.github/workflows/release.yml'
 permissions:
   contents: read
 env:
-  RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+  RELEASE_VERSION: 0.1.0
 jobs:
   build:
     strategy:
@@ -59,6 +56,6 @@ jobs:
           merge-multiple: true
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: v${{ inputs.version || '0.1.0' }}
+          tag_name: v0.1.0
           target_commitish: ${{ github.sha }}
           files: dist/*.tar.gz
