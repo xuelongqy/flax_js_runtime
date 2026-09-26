@@ -1,0 +1,7 @@
+{
+  "version": "0.1.0",
+  "runtimeCommit": "47010166022384c8f220270950fc74b3cf0258d5",
+  "abiVersion": 2,
+  "engines": ["hermes", "v8"],
+  "platforms": ["macos-arm64"]
+}
