@@ -1,0 +1,12 @@
+diff --git a/src/objects/backing-store.cc b/src/objects/backing-store.cc
+--- a/src/objects/backing-store.cc
++++ b/src/objects/backing-store.cc
+@@ -323,7 +323,7 @@
+   // For accounting purposes, whether a GC was necessary.
+   bool did_retry = false;
+ 
+-  auto gc_retry = [&](const std::function<bool()>& fn) {
++  auto gc_retry = [&](base::FunctionRef<bool()> fn) {
+     if (fn()) return true;
+     // Collect garbage and retry.
+     did_retry = true;

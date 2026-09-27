@@ -20,6 +20,11 @@
       "directory": "source"
     },
     {
+      "file": "backing-store-function-ref.patch",
+      "sha256": "8df8eeba9a5afc7020f8eca9b98b9b61f184e24721b7fcd1fe6225be731b5c2e",
+      "directory": "source"
+    },
+    {
       "file": "windows-extended-map-torque-layout.patch",
       "sha256": "3482b49af60a1e61156f42fd204c4d782abe10eff6acf22b740b99d5c8f95ebe",
       "directory": "source"
