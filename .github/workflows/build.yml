@@ -7,6 +7,10 @@ on:
         description: Diagnostic run for Linux, Windows and Android only
         type: boolean
         default: false
+      diagnostic_groups:
+        description: Optional comma-separated matrix groups; skipped jobs do not count as validation
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -49,7 +53,7 @@ jobs:
           sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
           brew install cmake ninja
       - name: Install Android build tools
-        if: matrix.group == 'android'
+        if: matrix.group == 'android' && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.group))
         shell: bash
         run: |
           sudo apt-get update
@@ -68,10 +72,10 @@ jobs:
           if (-not $vs) { throw 'Visual Studio C++ tools are missing' }
       - run: dart pub get
       - name: Build and check target SDKs
-        if: runner.os != 'Windows' && (!inputs.skip_macos || !startsWith(matrix.group, 'mac-'))
+        if: runner.os != 'Windows' && (!inputs.skip_macos || !startsWith(matrix.group, 'mac-')) && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.group))
         run: dart run tool/ci_build.dart --targets=${{ matrix.targets }}
       - name: Build and check Windows SDKs
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.group))
         shell: pwsh
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
@@ -202,7 +206,8 @@ jobs:
           sdk: 3.13.2
           architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
       - run: dart pub get
-      - run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
+      - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
+        run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
