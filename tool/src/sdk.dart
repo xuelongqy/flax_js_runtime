@@ -4,8 +4,7 @@ import 'dart:io';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-const sdkTarget = 'macos-arm64';
-const sdkMinimumOS = '15.0';
+import 'target.dart';
 
 Map<String, dynamic> readJson(String path) =>
     jsonDecode(File(path).readAsStringSync()) as Map<String, dynamic>;
@@ -124,16 +123,20 @@ void copyNotices(Directory source, Directory destination) {
 }
 
 /// A new stage is disposable; previously verified archives are never rewritten.
-Directory newStage(Directory root, String engine) {
+Directory newStage(Directory root, String engine, SdkTarget target) {
   final stage = Directory(
-    p.join(root.path, 'build', 'sdk', '$engine-$sdkTarget'),
+    p.join(root.path, 'build', 'sdk', '$engine-${target.id}'),
   );
   if (stage.existsSync()) stage.deleteSync(recursive: true);
   stage.createSync(recursive: true);
   return stage;
 }
 
-Future<List<String>> stageLibraries(Directory stage, List<File> inputs) async {
+Future<List<String>> stageLibraries(
+  Directory stage,
+  List<File> inputs,
+  SdkTarget target,
+) async {
   final libraries = <String>[];
   final names = <String>{};
   final installNames = <String, String>{};
@@ -142,50 +145,131 @@ Future<List<String>> stageLibraries(Directory stage, List<File> inputs) async {
     if (!file.existsSync() || !names.add(name)) {
       throw StateError('Missing or duplicate SDK library: ${file.path}');
     }
-    final oldId = await command('otool', ['-D', file.path], capture: true);
-    installNames[oldId.split('\n').last.trim()] = '@rpath/$name';
+    if (target.isApple) {
+      final oldId = await command('otool', ['-D', file.path], capture: true);
+      installNames[oldId.split('\n').last.trim()] = '@rpath/$name';
+    }
     final relative = 'lib/$name';
     final out = File(p.join(stage.path, relative))
       ..parent.createSync(recursive: true);
     file.copySync(out.path);
     libraries.add(relative);
+    if (target.os == 'windows') {
+      final base = p.basenameWithoutExtension(name);
+      final importLibrary = [
+        File(p.join(file.parent.path, '$base.lib')),
+        File(p.join(file.parent.path, '$name.lib')),
+      ].where((candidate) => candidate.existsSync()).firstOrNull;
+      if (importLibrary == null) {
+        throw StateError('Missing Windows import library for $name');
+      }
+      importLibrary.copySync(p.join(stage.path, 'lib', '$base.lib'));
+    }
   }
   for (final relative in libraries) {
     final file = File(p.join(stage.path, relative));
-    final deps = await libraryDependencies(file);
+    final deps = await libraryDependencies(file, target);
     final changes = <String>[];
     for (final dep in deps) {
-      if (_systemLibrary(dep)) continue;
-      final replacement =
-          installNames[dep] ??
-          (names.contains(p.basename(dep))
-              ? '@rpath/${p.basename(dep)}'
-              : null);
-      if (replacement == null)
+      if (_systemLibrary(dep, target)) continue;
+      if (!names.any(
+            (name) => name.toLowerCase() == p.basename(dep).toLowerCase(),
+          ) &&
+          !installNames.containsKey(dep)) {
         throw StateError('Unbundled SDK dependency: $dep');
-      changes.addAll(['-change', dep, replacement]);
+      }
+      if (target.isApple) {
+        changes.addAll([
+          '-change',
+          dep,
+          installNames[dep] ?? '@rpath/${p.basename(dep)}',
+        ]);
+      }
     }
-    await command('install_name_tool', [
-      '-id',
-      '@rpath/${p.basename(relative)}',
-      ...changes,
-      file.path,
-    ]);
-    await command('codesign', ['--force', '--sign', '-', file.path]);
+    if (target.isApple) {
+      await command('install_name_tool', [
+        '-id',
+        '@rpath/${p.basename(relative)}',
+        ...changes,
+        file.path,
+      ]);
+      await command('codesign', ['--force', '--sign', '-', file.path]);
+    } else if (target.os == 'linux' || target.os == 'android') {
+      await command('patchelf', ['--set-rpath', r'$ORIGIN', file.path]);
+    }
   }
   return libraries;
 }
 
-bool _systemLibrary(String value) =>
-    value.startsWith('/usr/lib/') || value.startsWith('/System/Library/');
+bool _systemLibrary(String value, SdkTarget target) {
+  if (target.isApple) {
+    return value.startsWith('/usr/lib/') ||
+        value.startsWith('/System/Library/');
+  }
+  final name = p.basename(value).toLowerCase();
+  if (target.os == 'windows') {
+    return name.startsWith('api-ms-win-') ||
+        name.startsWith('ext-ms-win-') ||
+        const {
+          'kernel32.dll',
+          'user32.dll',
+          'advapi32.dll',
+          'ole32.dll',
+          'shell32.dll',
+          'ucrtbase.dll',
+          'vcruntime140.dll',
+          'vcruntime140_1.dll',
+          'msvcp140.dll',
+        }.contains(name);
+  }
+  if (target.os == 'android') {
+    return const {
+      'libc.so',
+      'libm.so',
+      'libdl.so',
+      'liblog.so',
+      'libandroid.so',
+      'libz.so',
+      'libstdc++.so',
+    }.contains(name);
+  }
+  return const {
+    'libc.so.6',
+    'libm.so.6',
+    'libdl.so.2',
+    'libpthread.so.0',
+    'librt.so.1',
+    'libgcc_s.so.1',
+    'libstdc++.so.6',
+    'ld-linux-x86-64.so.2',
+    'ld-linux-aarch64.so.1',
+  }.contains(name);
+}
 
-Future<List<String>> libraryDependencies(File file) async {
-  final output = await command('otool', ['-L', file.path], capture: true);
-  return output
-      .split('\n')
-      .skip(1)
-      .map((s) => s.trim().split(' (compatibility version ').first)
-      .where((s) => s.isNotEmpty)
+Future<List<String>> libraryDependencies(File file, SdkTarget target) async {
+  if (target.isApple) {
+    final output = await command('otool', ['-L', file.path], capture: true);
+    return output
+        .split('\n')
+        .skip(1)
+        .map((s) => s.trim().split(' (compatibility version ').first)
+        .where((s) => s.isNotEmpty)
+        .toList();
+  }
+  if (target.os == 'windows') {
+    final output = await command('dumpbin', [
+      '/DEPENDENTS',
+      file.path,
+    ], capture: true);
+    return RegExp(r'(?im)^\s*([\w.-]+\.dll)\s*$')
+        .allMatches(output)
+        .map((m) => m.group(1)!)
+        .toList();
+  }
+  final output = await command('readelf', ['-d', file.path], capture: true);
+  return RegExp(r'\(NEEDED\).*\[([^\]]+)\]')
+      .allMatches(output)
+      .map((m) => m.group(1)!)
       .toList();
 }
 
@@ -196,38 +280,73 @@ void writeCmakeConfig(
   Directory stage,
   String engine,
   List<String> libraries, {
+  required SdkTarget sdkTarget,
   List<String> defines = const [],
   int cxxStandard = 17,
 }) {
   final config = File(p.join(stage.path, 'cmake', 'FlaxEngineSDKConfig.cmake'))
     ..parent.createSync(recursive: true);
+  final system = switch (sdkTarget.os) {
+    'macos' => 'Darwin',
+    'ios' => 'iOS',
+    'android' => 'Android',
+    'linux' => 'Linux',
+    'windows' => 'Windows',
+    _ => throw StateError('Unknown SDK OS: ${sdkTarget.os}'),
+  };
   final content = StringBuffer(
-    r'''# Generated relocatable engine SDK. No Flax ABI is included.
-get_filename_component(_flax_sdk "${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
-if(NOT APPLE OR NOT CMAKE_SYSTEM_NAME STREQUAL "Darwin")
-  message(FATAL_ERROR "This engine SDK targets macOS arm64 only")
-endif()
-if(CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "arm64")
-  message(FATAL_ERROR "This engine SDK requires arm64")
-endif()
-if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
-  message(FATAL_ERROR "This SDK requires Clang with Apple's libc++")
-endif()
-if(CMAKE_OSX_DEPLOYMENT_TARGET AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "15.0")
-  message(FATAL_ERROR "This engine SDK requires macOS 15.0 or newer")
+    '''# Generated relocatable engine SDK. No Flax ABI is included.
+get_filename_component(_flax_sdk "\${CMAKE_CURRENT_LIST_DIR}/.." ABSOLUTE)
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "$system")
+  message(FATAL_ERROR "This engine SDK targets ${sdkTarget.id}")
 endif()
 ''',
   );
+  if (sdkTarget.isApple) {
+    final arch = sdkTarget.architecture == 'x64' ? 'x86_64' : 'arm64';
+    content.writeln(
+      '''if(CMAKE_OSX_ARCHITECTURES AND NOT CMAKE_OSX_ARCHITECTURES STREQUAL "$arch")
+  message(FATAL_ERROR "This engine SDK requires $arch")
+endif()
+if(CMAKE_OSX_DEPLOYMENT_TARGET AND CMAKE_OSX_DEPLOYMENT_TARGET VERSION_LESS "${sdkTarget.minimumVersion}")
+  message(FATAL_ERROR "This engine SDK requires ${sdkTarget.minimumVersion} or newer")
+endif()''',
+    );
+    if (sdkTarget.appleSdk != null) {
+      content.writeln(
+        '''if(CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT MATCHES "${sdkTarget.appleSdk}")
+  message(FATAL_ERROR "This engine SDK requires ${sdkTarget.appleSdk}")
+endif()''',
+      );
+    }
+  } else if (sdkTarget.os == 'android') {
+    content.writeln(
+      '''if(NOT ANDROID_ABI STREQUAL "${sdkTarget.androidAbi}" OR ANDROID_PLATFORM_LEVEL LESS 24)
+  message(FATAL_ERROR "This engine SDK requires ${sdkTarget.androidAbi} and API 24+")
+endif()''',
+    );
+  } else {
+    final processors = sdkTarget.architecture == 'x64'
+        ? 'x86_64|AMD64|amd64'
+        : 'aarch64|arm64|ARM64';
+    content.writeln('''if(NOT CMAKE_SYSTEM_PROCESSOR MATCHES "^($processors)\$")
+  message(FATAL_ERROR "This engine SDK requires ${sdkTarget.architecture}")
+endif()''');
+  }
   final targets = <String>[];
   for (var i = 0; i < libraries.length; i++) {
     final target = 'FlaxEngineSDK::${engine}_$i';
     targets.add(target);
+    final name = p.basename(libraries[i]);
     content.writeln(
       'if(NOT TARGET $target)\n'
-      '  add_library($target SHARED IMPORTED)\n'
-      '  set_target_properties($target PROPERTIES\n'
-      '    IMPORTED_LOCATION "\${_flax_sdk}/${libraries[i]}"\n'
-      '    IMPORTED_SONAME "@rpath/${p.basename(libraries[i])}")\nendif()',
+              '  add_library($target SHARED IMPORTED)\n'
+              '  set_target_properties($target PROPERTIES\n'
+              '    IMPORTED_LOCATION "\${_flax_sdk}/${libraries[i]}"\n' +
+          (sdkTarget.os == 'windows'
+              ? '    IMPORTED_IMPLIB "\${_flax_sdk}/lib/${p.basenameWithoutExtension(name)}.lib"\n'
+              : '    IMPORTED_SONAME "${sdkTarget.isApple ? '@rpath/' : ''}$name"\n') +
+          '  )\nendif()',
     );
   }
   final target = 'FlaxEngineSDK::$engine';
@@ -249,6 +368,7 @@ Future<void> finishSdk(
   String engine,
   List<String> libraries,
   Map<String, Object?> metadata,
+  SdkTarget target,
 ) async {
   final files = <String, String>{};
   final inputs =
@@ -258,16 +378,33 @@ Future<void> finishSdk(
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   for (final file in inputs) {
-    files[p.relative(file.path, from: stage.path)] = await digestFile(file);
+    files[p.relative(file.path, from: stage.path).replaceAll('\\', '/')] =
+        await digestFile(file);
   }
+  final dependencies = <String, List<String>>{
+    for (final library in libraries)
+      library: await libraryDependencies(
+        File(p.join(stage.path, library)),
+        target,
+      ),
+  };
   writeJson(p.join(stage.path, 'manifest.json'), {
-    'schemaVersion': 2,
+    'schemaVersion': 3,
     'sdkVersion': readJson(p.join(root.path, 'runtime.json'))['runtimeVersion'],
     'engine': engine,
-    'os': 'macos',
-    'architecture': 'arm64',
-    'minimumOSVersion': sdkMinimumOS,
+    'target': target.id,
+    'os': target.os,
+    'architecture': target.architecture,
+    'minimumOSVersion': target.minimumVersion,
+    if (target.appleSdk != null) 'appleSdk': target.appleSdk,
+    if (target.minimumGlibc != null) 'minimumGlibcVersion': target.minimumGlibc,
     'libraries': libraries,
+    'dynamicDependencies': dependencies,
+    if (target.os == 'windows')
+      'importLibraries': {
+        for (final library in libraries)
+          library: 'lib/${p.basenameWithoutExtension(library)}.lib',
+      },
     'cmakeConfig': 'cmake/FlaxEngineSDKConfig.cmake',
     'cmakeTarget': 'FlaxEngineSDK::$engine',
     'metadata': metadata,
@@ -279,21 +416,30 @@ Future<void> finishSdk(
 
 Future<void> verifySdk(Directory stage) async {
   final manifest = readJson(p.join(stage.path, 'manifest.json'));
-  if (manifest['schemaVersion'] != 2 ||
-      manifest['os'] != 'macos' ||
-      manifest['architecture'] != 'arm64' ||
+  final target = sdkTargets[manifest['target']];
+  if (manifest['schemaVersion'] != 3 ||
+      target == null ||
+      manifest['os'] != target.os ||
+      manifest['architecture'] != target.architecture ||
+      manifest['minimumOSVersion'] != target.minimumVersion ||
+      manifest['appleSdk'] != target.appleSdk ||
+      manifest['minimumGlibcVersion'] != target.minimumGlibc ||
       manifest.containsKey('abiVersion') ||
       manifest.containsKey('entrySymbol')) {
-    throw StateError('Not a macOS arm64 engine SDK v2');
+    throw StateError('Invalid engine SDK target or schema');
   }
   final files = Map<String, String>.from(manifest['files'] as Map);
   for (final entry in files.entries) {
-    if (p.isAbsolute(entry.key) || p.split(entry.key).contains('..')) {
+    if (p.posix.isAbsolute(entry.key) ||
+        p.posix.split(entry.key).contains('..')) {
       throw StateError('Unsafe SDK path: ${entry.key}');
     }
     await requireDigest(File(p.join(stage.path, entry.key)), entry.value);
   }
   final libraries = (manifest['libraries'] as List).cast<String>();
+  final declaredDependencies = Map<String, dynamic>.from(
+    manifest['dynamicDependencies'] as Map,
+  );
   if (libraries.isEmpty || !files.containsKey(manifest['cmakeConfig'])) {
     throw StateError('Incomplete SDK manifest');
   }
@@ -302,20 +448,100 @@ Future<void> verifySdk(Directory stage) async {
     if (!files.containsKey(library))
       throw StateError('Unhashed library: $library');
     final file = File(p.join(stage.path, library));
-    if (await command('lipo', ['-archs', file.path], capture: true) !=
-        'arm64') {
-      throw StateError('Wrong SDK architecture: $library');
+    await _verifyArchitecture(file, target);
+    final actualDependencies = await libraryDependencies(file, target);
+    if (declaredDependencies[library] is! List ||
+        (declaredDependencies[library] as List).cast<String>().join('\n') !=
+            actualDependencies.join('\n')) {
+      throw StateError('Dynamic dependencies changed in $library');
     }
-    for (final dep in await libraryDependencies(file)) {
-      if (!_systemLibrary(dep) &&
-          !(dep.startsWith('@rpath/') && names.contains(p.basename(dep)))) {
+    for (final dep in actualDependencies) {
+      if (!_systemLibrary(dep, target) &&
+          !names.any(
+            (name) => name.toLowerCase() == p.basename(dep).toLowerCase(),
+          )) {
         throw StateError('Unbundled dependency in $library: $dep');
       }
     }
-    final exports = await command('nm', ['-gUj', file.path], capture: true);
-    if (exports.contains('_flax_hermes_get_api') ||
-        exports.contains('_flax_v8_get_api')) {
+    if (target.os == 'windows') {
+      final imports = Map<String, String>.from(
+        manifest['importLibraries'] as Map,
+      );
+      if (!files.containsKey(imports[library])) {
+        throw StateError('Missing import library for $library');
+      }
+    }
+    final exports = target.os == 'windows'
+        ? await command('dumpbin', ['/EXPORTS', file.path], capture: true)
+        : await command(
+            'nm',
+            target.isApple
+                ? ['-gUj', file.path]
+                : ['-D', '--defined-only', file.path],
+            capture: true,
+          );
+    if (exports.contains('flax_hermes_get_api') ||
+        exports.contains('flax_v8_get_api')) {
       throw StateError('Engine SDK must not contain Flax ABI symbols');
     }
+    if (target.minimumGlibc != null) {
+      final versions = await command('readelf', [
+        '--version-info',
+        file.path,
+      ], capture: true);
+      final maximum = target.minimumGlibc!.split('.').map(int.parse).toList();
+      for (final match in RegExp(r'GLIBC_(\d+)\.(\d+)').allMatches(versions)) {
+        final major = int.parse(match.group(1)!);
+        final minor = int.parse(match.group(2)!);
+        if (major > maximum[0] || major == maximum[0] && minor > maximum[1]) {
+          throw StateError(
+            'GLIBC baseline exceeded in $library: $major.$minor',
+          );
+        }
+      }
+    }
   }
+}
+
+Future<void> _verifyArchitecture(File file, SdkTarget target) async {
+  if (target.isApple) {
+    final actual = await command('lipo', ['-archs', file.path], capture: true);
+    final expected = target.architecture == 'x64' ? 'x86_64' : 'arm64';
+    if (actual != expected)
+      throw StateError('Wrong architecture: ${file.path}');
+    final kind = await command('xcrun', [
+      'vtool',
+      '-show-build',
+      file.path,
+    ], capture: true);
+    final platform = RegExp(r'platform\s+(IOS|IOSSIMULATOR)')
+        .firstMatch(kind)
+        ?.group(1);
+    if (target.os == 'ios' &&
+        platform != (target.appleSdk == 'iphoneos' ? 'IOS' : 'IOSSIMULATOR')) {
+      throw StateError('Wrong iOS SDK in ${file.path}');
+    }
+    return;
+  }
+  if (target.os == 'windows') {
+    final headers = await command('dumpbin', [
+      '/HEADERS',
+      file.path,
+    ], capture: true);
+    final machine = target.architecture == 'x64'
+        ? '8664 machine'
+        : 'AA64 machine';
+    if (!headers.toUpperCase().contains(machine.toUpperCase())) {
+      throw StateError('Wrong PE machine in ${file.path}');
+    }
+    return;
+  }
+  final headers = await command('readelf', ['-h', file.path], capture: true);
+  final machine = switch (target.architecture) {
+    'arm32' => 'ARM',
+    'arm64' => 'AArch64',
+    _ => 'Advanced Micro Devices X86-64',
+  };
+  if (!headers.contains(machine))
+    throw StateError('Wrong ELF machine in ${file.path}');
 }

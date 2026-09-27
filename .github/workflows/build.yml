@@ -1,28 +1,34 @@
-name: Engine builds
+name: Engine SDK candidates
+
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - 'engines/**'
-      - 'tool/**'
-      - 'runtime.json'
-      - '.github/workflows/build.yml'
-  pull_request:
-    paths:
-      - 'engines/**'
-      - 'tool/**'
-      - 'runtime.json'
+
 permissions:
   contents: read
+
 jobs:
-  engine:
+  native:
     strategy:
       fail-fast: false
       matrix:
-        engine: [hermes, v8]
-    runs-on: ${{ matrix.engine == 'v8' && 'macos-26' || 'macos-15' }}
-    timeout-minutes: 180
+        include:
+          - group: mac-arm64
+            runner: macos-26
+            targets: macos-arm64,ios-device-arm64,ios-simulator-arm64
+          - group: mac-x64
+            runner: macos-26-intel
+            targets: macos-x64,ios-simulator-x64
+          - group: windows-x64
+            runner: windows-2025
+            targets: windows-x64
+          - group: windows-arm64
+            runner: windows-11-arm
+            targets: windows-arm64
+          - group: android
+            runner: ubuntu-24.04
+            targets: android-arm32,android-arm64,android-x64
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 360
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -30,21 +36,168 @@ jobs:
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.13.2
-      - name: Select pinned V8 host tools
-        if: matrix.engine == 'v8'
-        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
-      - run: brew install cmake ninja
-      - run: dart pub get
-      - run: dart run tool/build.dart --engine=${{ matrix.engine }}
-      - run: dart run tool/package.dart --engine=${{ matrix.engine }}
-      - name: Verify packaged artifact
+          architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+      - name: Select Apple build tools
+        if: startsWith(matrix.group, 'mac-')
+        shell: bash
         run: |
-          dart run tool/check_sdk.dart ${{ matrix.engine }} build/sdk/${{ matrix.engine }}-macos-arm64
-          VERSION=$(jq -r .runtimeVersion runtime.json)
-          test -s "dist/flax-engine-sdk-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz"
-          tar -tzf "dist/flax-engine-sdk-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz" | grep -q './manifest.json'
+          sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
+          brew install cmake ninja
+      - name: Install Android build tools
+        if: matrix.group == 'android'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build patchelf binutils
+          set +o pipefail
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'ndk;28.2.13676358'
+          set -o pipefail
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+      - name: Check Windows build tools
+        if: startsWith(matrix.group, 'windows-')
+        shell: pwsh
+        run: |
+          cmake --version
+          ninja --version
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          if (-not $vs) { throw 'Visual Studio C++ tools are missing' }
+      - run: dart pub get
+      - name: Build and check target SDKs
+        if: runner.os != 'Windows'
+        run: dart run tool/ci_build.dart --targets=${{ matrix.targets }}
+      - name: Build and check Windows SDKs
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
+          $arch = if ('${{ matrix.group }}' -eq 'windows-arm64') { 'arm64' } else { 'amd64' }
+          $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
+          cmd /c "`"$dev`" -arch=$arch && dart run tool/ci_build.dart --targets=${{ matrix.targets }}"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'macos-arm64')
         with:
-          name: sdk-${{ matrix.engine }}
-          path: dist/*.tar.gz
-          retention-days: 7
+          name: sdk-macos-arm64
+          path: |
+            dist/*-macos-arm64.tar.gz
+            dist/SHA256SUMS-macos-arm64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'macos-x64')
+        with:
+          name: sdk-macos-x64
+          path: |
+            dist/*-macos-x64.tar.gz
+            dist/SHA256SUMS-macos-x64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'ios-device-arm64')
+        with:
+          name: sdk-ios-device-arm64
+          path: |
+            dist/*-ios-device-arm64.tar.gz
+            dist/SHA256SUMS-ios-device-arm64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'ios-simulator-arm64')
+        with:
+          name: sdk-ios-simulator-arm64
+          path: |
+            dist/*-ios-simulator-arm64.tar.gz
+            dist/SHA256SUMS-ios-simulator-arm64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'ios-simulator-x64')
+        with:
+          name: sdk-ios-simulator-x64
+          path: |
+            dist/*-ios-simulator-x64.tar.gz
+            dist/SHA256SUMS-ios-simulator-x64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'windows-x64')
+        with:
+          name: sdk-windows-x64
+          path: |
+            dist/*-windows-x64.tar.gz
+            dist/SHA256SUMS-windows-x64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'windows-arm64')
+        with:
+          name: sdk-windows-arm64
+          path: |
+            dist/*-windows-arm64.tar.gz
+            dist/SHA256SUMS-windows-arm64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'android-arm32')
+        with:
+          name: sdk-android-arm32
+          path: |
+            dist/*-android-arm32.tar.gz
+            dist/SHA256SUMS-android-arm32.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'android-arm64')
+        with:
+          name: sdk-android-arm64
+          path: |
+            dist/*-android-arm64.tar.gz
+            dist/SHA256SUMS-android-arm64.txt
+          if-no-files-found: warn
+          retention-days: 14
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always() && contains(matrix.targets, 'android-x64')
+        with:
+          name: sdk-android-x64
+          path: |
+            dist/*-android-x64.tar.gz
+            dist/SHA256SUMS-android-x64.txt
+          if-no-files-found: warn
+          retention-days: 14
+
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            target: linux-x64
+          - runner: ubuntu-24.04-arm
+            target: linux-arm64
+    runs-on: ${{ matrix.runner }}
+    container: ubuntu:20.04
+    timeout-minutes: 360
+    steps:
+      - name: Install baseline tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates python3 python3-pip ninja-build patchelf binutils clang
+          python3 -m pip install 'cmake>=3.24,<5'
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+          architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+      - run: dart pub get
+      - run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: sdk-${{ matrix.target }}
+          path: |
+            dist/*-${{ matrix.target }}.tar.gz
+            dist/SHA256SUMS-${{ matrix.target }}.txt
+          if-no-files-found: warn
+          retention-days: 14

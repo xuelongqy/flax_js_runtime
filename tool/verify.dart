@@ -7,7 +7,7 @@ void main() {
   final runtime = jsonDecode(
     File('runtime.json').readAsStringSync(),
   ) as Map<String, dynamic>;
-  if (runtime['schemaVersion'] != 2 || runtime.containsKey('abiVersion')) {
+  if (runtime['schemaVersion'] != 3 || runtime.containsKey('abiVersion')) {
     fail('Unsupported engine SDK schema');
   }
   final engines = runtime['engines'] as Map<String, dynamic>;

@@ -1,1 +1,1 @@
-{"schemaVersion":2,"runtimeVersion":"0.2.0","engines":{"hermes":{"status":"stable","descriptor":"engines/hermes/engine.json"},"v8":{"status":"stable","descriptor":"engines/v8/engine.json"},"quickjs":{"status":"experimental","descriptor":"engines/quickjs/engine.json"}}}
+{"schemaVersion":3,"runtimeVersion":"0.3.0","engines":{"hermes":{"status":"stable","descriptor":"engines/hermes/engine.json"},"v8":{"status":"stable","descriptor":"engines/v8/engine.json"},"quickjs":{"status":"experimental","descriptor":"engines/quickjs/engine.json"}}}

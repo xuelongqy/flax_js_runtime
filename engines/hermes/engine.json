@@ -12,6 +12,10 @@
       {
         "file": "hermes-transfer.patch",
         "sha256": "d70518a5775306c4d3ff92d3dd27922ab6a3fcabae84197d18af64e4f2a248f5"
+      },
+      {
+        "file": "hermes-windows-shared.patch",
+        "sha256": "20a131109992476b022be7259dc4674817e3a89315ebd7f742a55dea6600fbd0"
       }
     ]
   },

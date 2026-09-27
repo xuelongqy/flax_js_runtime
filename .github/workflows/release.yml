@@ -3,8 +3,13 @@ on:
   workflow_dispatch:
     inputs:
       candidate_run_id:
-        description: Successful Engine builds workflow run containing both SDKs
+        description: Successful Engine SDK candidates run containing all 24 archives
         required: true
+      platform_validation_completed:
+        description: Confirm all 24 candidates passed target execution and Flax validation
+        type: boolean
+        required: true
+        default: false
 permissions:
   contents: write
   actions: read
@@ -27,20 +32,40 @@ jobs:
         run: |
           test "${{ github.ref_type }}" = tag
           test "${{ github.ref_name }}" = "v$(jq -r .runtimeVersion runtime.json)"
+          test "${{ inputs.platform_validation_completed }}" = true
+          test "$(gh run view "$CANDIDATE_RUN" --json name --jq .name)" = 'Engine SDK candidates'
           test "$(gh run view "$CANDIDATE_RUN" --json headSha --jq .headSha)" = "$GITHUB_SHA"
           test "$(gh run view "$CANDIDATE_RUN" --json conclusion --jq .conclusion)" = success
           mkdir -p dist
           gh run download "$CANDIDATE_RUN" --pattern 'sdk-*' --dir dist
-          find dist -name '*.tar.gz' -exec mv {} dist/ \;
-      - name: Verify exact candidate archives
+          find dist -mindepth 2 -type f -exec mv {} dist/ \;
+      - name: Verify all candidate archives
         run: |
           VERSION=$(jq -r .runtimeVersion runtime.json)
+          TARGETS='macos-arm64 macos-x64 linux-x64 linux-arm64 windows-x64 windows-arm64 android-arm32 android-arm64 android-x64 ios-device-arm64 ios-simulator-arm64 ios-simulator-x64'
+          test "$(find dist -maxdepth 1 -name '*.tar.gz' | wc -l | tr -d ' ')" = 24
+          test "$(find dist -maxdepth 1 -name 'SHA256SUMS-*.txt' | wc -l | tr -d ' ')" = 12
+          (cd dist && for CHECKSUM in SHA256SUMS-*.txt; do shasum -a 256 -c "$CHECKSUM"; done)
           for ENGINE in hermes v8; do
-            ARCHIVE="dist/flax-engine-sdk-$VERSION-$ENGINE-macos-arm64.tar.gz"
-            test -s "$ARCHIVE"
-            mkdir -p "build/release/$ENGINE"
-            tar -xzf "$ARCHIVE" -C "build/release/$ENGINE"
-            dart run tool/check_sdk.dart "$ENGINE" "build/release/$ENGINE"
+            for TARGET in $TARGETS; do
+              ARCHIVE="dist/flax-engine-sdk-$VERSION-$ENGINE-$TARGET.tar.gz"
+              test -s "$ARCHIVE"
+              DIRECTORY="build/release/$ENGINE-$TARGET"
+              mkdir -p "$DIRECTORY"
+              python3 - "$ARCHIVE" "$DIRECTORY" <<'PY'
+          import pathlib
+          import sys
+          import tarfile
+
+          with tarfile.open(sys.argv[1], 'r:gz') as archive:
+              for member in archive:
+                  name = pathlib.PurePosixPath(member.name)
+                  if name.is_absolute() or '..' in name.parts or not (member.isfile() or member.isdir()):
+                      raise SystemExit(f'Unsafe archive member: {member.name}')
+              archive.extractall(sys.argv[2], filter='data')
+          PY
+              dart run tool/check_archive.dart "$ENGINE" "$TARGET" "$DIRECTORY"
+            done
           done
           shasum -a 256 dist/*.tar.gz > dist/SHA256SUMS.txt
       - name: Publish verified bytes

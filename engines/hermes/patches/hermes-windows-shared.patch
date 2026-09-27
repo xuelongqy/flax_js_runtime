@@ -1,0 +1,13 @@
+--- a/lib/CMakeLists.txt
++++ b/lib/CMakeLists.txt
+@@ -224,5 +224,10 @@
+ if(APPLE)
+   target_link_libraries(hermesvm PRIVATE -force_load hermesvm_a)
+   target_link_libraries(hermesvmlean PRIVATE -force_load hermesvmlean_a)
++elseif(WIN32)
++  target_link_libraries(hermesvm PRIVATE hermesvm_a)
++  target_link_libraries(hermesvmlean PRIVATE hermesvmlean_a)
++  target_link_options(hermesvm PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:hermesvm_a>")
++  target_link_options(hermesvmlean PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:hermesvmlean_a>")
+ else()
+   target_link_libraries(hermesvm PRIVATE

@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 
 import 'src/sdk.dart' as sdk;
+import 'src/target.dart';
 
 Future<void> main(List<String> args) async {
   final engine = args
@@ -13,8 +14,9 @@ Future<void> main(List<String> args) async {
     throw ArgumentError('Expected --engine=hermes or --engine=v8');
   }
   final root = Directory.fromUri(Platform.script.resolve('../'));
+  final target = parseTarget(args);
   final stage = Directory(
-    p.join(root.path, 'build', 'sdk', '$engine-${sdk.sdkTarget}'),
+    p.join(root.path, 'build', 'sdk', '$engine-${target.id}'),
   );
   await sdk.verifySdk(stage);
   final version = sdk.readJson(
@@ -24,7 +26,7 @@ Future<void> main(List<String> args) async {
     p.join(
       root.path,
       'dist',
-      'flax-engine-sdk-$version-$engine-${sdk.sdkTarget}.tar.gz',
+      'flax-engine-sdk-$version-$engine-${target.id}.tar.gz',
     ),
   );
   archive.parent.createSync(recursive: true);

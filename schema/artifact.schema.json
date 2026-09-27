@@ -6,10 +6,12 @@
     "schemaVersion",
     "sdkVersion",
     "engine",
+    "target",
     "os",
     "architecture",
     "minimumOSVersion",
     "libraries",
+    "dynamicDependencies",
     "cmakeConfig",
     "cmakeTarget",
     "metadata",
@@ -17,7 +19,7 @@
   ],
   "properties": {
     "schemaVersion": {
-      "const": 2
+      "const": 3
     },
     "sdkVersion": {
       "type": "string"
@@ -28,14 +30,23 @@
         "v8"
       ]
     },
+    "target": {
+      "type": "string"
+    },
     "os": {
-      "const": "macos"
+      "enum": ["macos", "linux", "windows", "android", "ios"]
     },
     "architecture": {
-      "const": "arm64"
+      "enum": ["arm32", "arm64", "x64"]
     },
     "minimumOSVersion": {
-      "const": "15.0"
+      "type": "string"
+    },
+    "appleSdk": {
+      "enum": ["iphoneos", "iphonesimulator"]
+    },
+    "minimumGlibcVersion": {
+      "type": "string"
     },
     "libraries": {
       "type": "array",
@@ -43,6 +54,17 @@
       "items": {
         "type": "string"
       }
+    },
+    "dynamicDependencies": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "items": {"type": "string"}
+      }
+    },
+    "importLibraries": {
+      "type": "object",
+      "additionalProperties": {"type": "string"}
     },
     "cmakeConfig": {
       "const": "cmake/FlaxEngineSDKConfig.cmake"

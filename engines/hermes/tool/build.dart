@@ -1,16 +1,14 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:ffi';
 import 'dart:io';
 
 import '../../../tool/src/sdk.dart' as sdk;
+import '../../../tool/src/target.dart';
 
 import 'package:path/path.dart' as p;
 
-Future<void> main() async {
-  if (!Platform.isMacOS || Abi.current() != Abi.macosArm64) {
-    throw UnsupportedError('Native runtime verification requires macOS arm64.');
-  }
+Future<void> main(List<String> args) async {
+  final target = parseTarget(args)..requireBuildHost();
   final package = Directory.fromUri(Platform.script.resolve('../'));
   final root = Directory.fromUri(Platform.script.resolve('../../../'));
   final input = jsonDecode(
@@ -50,17 +48,64 @@ Future<void> main() async {
     if (source.existsSync()) source.deleteSync(recursive: true);
     await _run('tar', ['-xzf', archive.path, '-C', cache.path]);
     for (final patch in patches) {
-      await _run('patch', [
-        '-p1',
-        '--batch',
-        '--forward',
-        '-i',
+      await _run('git', [
+        'apply',
+        '--unsafe-paths',
         p.join(package.path, 'patches', patch['file'] as String),
       ], directory: source.path);
     }
     stamp.writeAsStringSync(sourceStamp);
   }
-  final build = p.join(package.path, 'build/native');
+  final build = p.join(package.path, 'build', 'native', target.id);
+  final flags = <String>[];
+  if (target.isApple) {
+    flags.addAll([
+      '-DCMAKE_OSX_ARCHITECTURES=${target.architecture == 'x64' ? 'x86_64' : 'arm64'}',
+      '-DCMAKE_OSX_DEPLOYMENT_TARGET=${target.minimumVersion}',
+      '-DHERMES_APPLE_TARGET_PLATFORM=${target.appleSdk ?? ''}',
+      if (target.os == 'ios') '-DCMAKE_SYSTEM_NAME=iOS',
+      if (target.os == 'ios') '-DCMAKE_OSX_SYSROOT=${target.appleSdk}',
+    ]);
+  }
+  if (target.os == 'android') {
+    final ndk = Platform.environment['ANDROID_NDK_HOME'];
+    if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
+    flags.addAll([
+      '-DCMAKE_TOOLCHAIN_FILE=$ndk/build/cmake/android.toolchain.cmake',
+      '-DANDROID_ABI=${target.androidAbi}',
+      '-DANDROID_PLATFORM=android-24',
+      '-DHERMES_IS_ANDROID=ON',
+    ]);
+  }
+  if (target.isMobile) {
+    final hostBuild = p.join(package.path, 'build', 'host-hermesc');
+    final import = File(p.join(hostBuild, 'ImportHostCompilers.cmake'));
+    if (!import.existsSync()) {
+      await _run('cmake', [
+        '-S',
+        source.path,
+        '-B',
+        hostBuild,
+        '-G',
+        'Ninja',
+        '-DCMAKE_BUILD_TYPE=Release',
+        '-DHERMES_ENABLE_TEST_SUITE=OFF',
+        '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
+      ]);
+      await _run('cmake', [
+        '--build',
+        hostBuild,
+        '--target',
+        'hermesc',
+        'shermes',
+        '--parallel',
+        '${sdk.buildJobs()}',
+      ]);
+    }
+    if (!import.existsSync())
+      throw StateError('Missing host Hermes compiler export');
+    flags.add('-DIMPORT_HOST_COMPILERS=${import.path}');
+  }
   await _run('cmake', [
     '-S',
     p.join(package.path, 'native'),
@@ -70,8 +115,7 @@ Future<void> main() async {
     'Ninja',
     '-DFLAX_HERMES_SOURCE=${source.path}',
     '-DCMAKE_BUILD_TYPE=Release',
-    '-DCMAKE_OSX_ARCHITECTURES=arm64',
-    '-DCMAKE_OSX_DEPLOYMENT_TARGET=15.0',
+    ...flags,
     '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
   ]);
   final jobs = sdk.buildJobs();
@@ -79,12 +123,14 @@ Future<void> main() async {
     '--build',
     build,
     '--target',
-    'flax_hermes_sdk_test',
+    target.isMobile ? 'hermesvm' : 'flax_hermes_sdk_test',
     '--parallel',
     '$jobs',
   ]);
-  await _run('ctest', ['--test-dir', build, '--output-on-failure']);
-  await _prepareAssets(root, source, input, build);
+  if (!target.isMobile) {
+    await _run('ctest', ['--test-dir', build, '--output-on-failure']);
+  }
+  await _prepareAssets(root, source, input, build, target);
 }
 
 Future<void> _prepareAssets(
@@ -92,10 +138,42 @@ Future<void> _prepareAssets(
   Directory upstreamSource,
   Map<String, Object?> input,
   String build,
+  SdkTarget target,
 ) async {
-  final stage = sdk.newStage(root, 'hermes');
-  final library = File(p.join(build, 'hermes', 'lib', 'libhermesvm.dylib'));
-  final libraries = await sdk.stageLibraries(stage, [library]);
+  final stage = sdk.newStage(root, 'hermes', target);
+  final matches = Directory(build)
+      .listSync(recursive: true)
+      .whereType<File>()
+      .where(
+        (file) =>
+            p.basename(file.path) ==
+            (target.os == 'windows'
+                ? 'hermesvm.dll'
+                : 'libhermesvm${target.extension}'),
+      )
+      .toList();
+  if (matches.length != 1)
+    throw StateError(
+      'Expected one Hermes shared library, found ${matches.length}',
+    );
+  final inputs = <File>[matches.single];
+  if (target.os == 'android') {
+    final ndk = Platform.environment['ANDROID_NDK_HOME']!;
+    inputs.add(
+      File(
+        p.join(
+          ndk,
+          'sources',
+          'cxx-stl',
+          'llvm-libc++',
+          'libs',
+          target.androidAbi,
+          'libc++_shared.so',
+        ),
+      ),
+    );
+  }
+  final libraries = await sdk.stageLibraries(stage, inputs, target);
   sdk.copyHeaders(
     Directory(p.join(upstreamSource.path, 'public')),
     Directory(p.join(stage.path, 'include')),
@@ -109,12 +187,12 @@ Future<void> _prepareAssets(
     Directory(p.join(stage.path, 'include')),
   );
   sdk.copyNotices(upstreamSource, Directory(p.join(stage.path, 'notices')));
-  sdk.writeCmakeConfig(stage, 'hermes', libraries);
+  sdk.writeCmakeConfig(stage, 'hermes', libraries, sdkTarget: target);
   await sdk.finishSdk(root, stage, 'hermes', libraries, {
     'revision': (input['upstream'] as Map<String, Object?>)['revision'],
     'patches': (input['upstream'] as Map<String, Object?>)['patches'],
     'jit': false,
-  });
+  }, target);
 }
 
 Future<void> _run(

@@ -1,19 +1,21 @@
 # Flax JavaScript Engine SDKs
 
-This repository pins and patches upstream Hermes and V8, builds their shared libraries, and publishes relocatable macOS arm64 SDK archives. It does not contain Flax's C ABI or engine adapters. Those live in [Flax](https://github.com/xuelongqy/flax) and are compiled against the SDK by its native asset hooks.
+This repository pins and patches upstream Hermes and V8, builds shared libraries, and packages relocatable engine SDK archives. It does not contain Flax's C ABI or engine adapters. Those live in [Flax](https://github.com/xuelongqy/flax) and are compiled against the SDK by its native asset hooks.
 
-The current SDK version is `runtime.json`'s `runtimeVersion`. Hermes retains the ArrayBuffer transfer patch. V8 is built as shared components with JIT enabled. QuickJS remains experimental and has no SDK.
+The candidate SDK version is `runtime.json`'s `runtimeVersion` (`0.3.0`). Published `0.2.0` archives remain unchanged. Hermes retains the ArrayBuffer transfer patch. V8 uses shared components on desktop and Android; its iOS candidate links a jitless monolith into one dylib. QuickJS remains experimental and has no SDK.
 
-On macOS arm64:
+On a matching build host, select one of the targets listed in `tool/src/target.dart`:
 
 ```sh
 dart pub get
 dart run tool/verify.dart
-dart run tool/build.dart --engine=hermes
-dart run tool/package.dart --engine=hermes
+dart run tool/build.dart --engine=hermes --target=macos-arm64
+dart run tool/package.dart --engine=hermes --target=macos-arm64
 dart run tool/check_sdk.dart hermes build/sdk/hermes-macos-arm64
 ```
 
-Use `--engine=v8` for V8 on the pinned Xcode 26.6 host described in `engines/v8/engine.json`. Building an engine never compiles Flax's ABI. An SDK contains all required dynamic libraries, headers, licenses, `manifest.json` with file hashes and build metadata, and a relocatable `FlaxEngineSDKConfig.cmake`. Consumers link `FlaxEngineSDK::hermes` or `FlaxEngineSDK::v8`.
+Use `--engine=v8` for V8. The macOS arm64 V8 build requires the pinned Xcode 26.6 host described in `engines/v8/engine.json`. Building an engine never compiles Flax's ABI. An SDK contains its dynamic libraries, headers, licenses, `manifest.json` with file hashes, dependencies and build metadata, and a relocatable `FlaxEngineSDKConfig.cmake`. Consumers link `FlaxEngineSDK::hermes` or `FlaxEngineSDK::v8`.
 
-`Engine builds` CI saves candidate archives. The `Publish engine SDK` workflow accepts a successful candidate run ID on a matching `v<runtimeVersion>` tag, rechecks the exact candidate archives and publishes those bytes. The old 0.1.0 ABI-containing archives are not compatible with SDK schema 2.
+Run `Engine SDK candidates` manually to build the 12 target variants for both engines. Desktop jobs execute an out-of-repository relocated consumer; Android and iOS jobs only compile and link it. A successful build is not device validation. Use `tool/check_sdk.dart` with `--adb-serial` or `--simulator` for executable mobile checks. iOS device loading still requires an app on a signed physical device. New 0.3.0 targets are candidates until they have run on their target platforms.
+
+The `Publish engine SDK` workflow accepts a successful single candidate run on a matching `v<runtimeVersion>` tag, requires confirmation of physical-device validation, checks all 24 archives and their manifests, and would publish the same bytes. Do not trigger it before platform validation is complete.
