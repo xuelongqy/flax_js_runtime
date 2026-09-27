@@ -41,11 +41,12 @@ diff --git a/src/objects/js-interceptor-map.tq b/src/objects/js-interceptor-map.
 diff --git a/src/objects/js-interceptor-map-inl.h b/src/objects/js-interceptor-map-inl.h
 --- a/src/objects/js-interceptor-map-inl.h
 +++ b/src/objects/js-interceptor-map-inl.h
-@@ -53,6 +53,9 @@
+@@ -53,6 +53,10 @@
  void JSInterceptorMap::init_flags_and_clear_extended_padding() {
    flags_ = 0;
    memset(extended_padding_, 0, sizeof(extended_padding_));
 +#if defined(V8_OS_WIN)
++  memset(windows_padding_, 0, sizeof(windows_padding_));
 +  windows_alignment_padding_ = 0;
 +#endif
  }
