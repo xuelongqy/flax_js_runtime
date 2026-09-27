@@ -13,3 +13,22 @@
 -if(HERMES_IS_ANDROID)
 +if(HERMES_IS_ANDROID AND NOT HERMES_UNICODE_LITE)
    add_hermes_library(jsijni SHARED
+--- a/API/hermes/CMakeLists.txt
++++ b/API/hermes/CMakeLists.txt
+@@ -88,3 +88,3 @@
+-if(HERMES_IS_ANDROID)
++if(HERMES_IS_ANDROID AND NOT HERMES_NO_ANDROID_JNI)
+   # hermes.cpp wraps the finalizer worker thread in an fbjni ThreadScope.
+   set(API_JNI_DEPS fbjni::fbjni)
+--- a/API/hermes/hermes.cpp
++++ b/API/hermes/hermes.cpp
+@@ -73,3 +73,3 @@
+-#ifdef __ANDROID__
++#if defined(__ANDROID__) && !defined(HERMES_NO_ANDROID_JNI)
+ #include <fbjni/fbjni.h>
+ #endif
+@@ -259,3 +259,3 @@
+ ::hermes::SerialExecutor::ThreadRunner makeFinalizerThreadRunner() {
+-#ifdef __ANDROID__
++#if defined(__ANDROID__) && !defined(HERMES_NO_ANDROID_JNI)
+   return [](std::function<void()> run) {

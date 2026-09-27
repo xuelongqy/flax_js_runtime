@@ -20,7 +20,7 @@
       },
       {
         "file": "hermes-android-unicode-lite.patch",
-        "sha256": "7cabccd000d50cc3f479ed137f1e82c37a7b183cfa79c18229308edabe0bbc83"
+        "sha256": "b8df1bc90b187f749a088451b4332cb5e24b897867b58b95dba8e58965e756f1"
       },
       {
         "file": "hermes-apple-sysroot.patch",
