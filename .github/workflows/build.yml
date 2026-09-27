@@ -85,7 +85,10 @@ jobs:
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
           $arch = if ('${{ matrix.group }}' -eq 'windows-arm64') { 'arm64' } else { 'amd64' }
           $dev = Join-Path $vs 'Common7\Tools\VsDevCmd.bat'
-          cmd /c "`"$dev`" -arch=$arch && dart run tool/ci_build.dart --targets=${{ matrix.targets }}"
+          $sdk = '10.0.26100.0'
+          $sdkHeaders = Join-Path ${env:ProgramFiles(x86)} "Windows Kits\10\Include\$sdk\um"
+          if (-not (Test-Path $sdkHeaders)) { throw "Windows SDK $sdk is missing" }
+          cmd /c "`"$dev`" -arch=$arch -winsdk=$sdk && dart run tool/ci_build.dart --targets=${{ matrix.targets }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'macos-arm64')
