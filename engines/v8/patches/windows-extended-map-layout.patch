@@ -1,0 +1,12 @@
+diff --git a/src/objects/map.h b/src/objects/map.h
+--- a/src/objects/map.h
++++ b/src/objects/map.h
+@@ -1289,4 +1289,8 @@ V8_ABSTRACT_OBJECT class ExtendedMap : public Map {
+ 
+   std::atomic<uint8_t> bit_field_ex_;
+   // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
++#if V8_CC_MSVC
++  // Keep the base size aligned with Torque when building on Windows.
++  uint8_t padding_[kTaggedSize - 1];
++#endif
+ } V8_OBJECT_END;
