@@ -253,7 +253,7 @@ Future<void> main(List<String> args) async {
   }
   final libraries =
       out
-          .listSync(recursive: true, followLinks: false)
+          .listSync(followLinks: false)
           .whereType<File>()
           .where(
             (file) =>
