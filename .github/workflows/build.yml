@@ -191,6 +191,10 @@ jobs:
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils pkg-config libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+          curl --fail --location --retry 2 --output /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
+          echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal main' > /etc/apt/sources.list.d/llvm.list
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y clang-23
           curl --fail --location --retry 2 --output /tmp/git-2.50.1.tar.xz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.50.1.tar.xz
           echo '7e3e6c36decbd8f1eedd14d42db6674be03671c2204864befa2a41756c5c8fc4  /tmp/git-2.50.1.tar.xz' | sha256sum -c -
           tar -xf /tmp/git-2.50.1.tar.xz -C /tmp
@@ -230,7 +234,14 @@ jobs:
         with:
           sdk: 3.13.2
           architecture: arm64
-      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build patchelf binutils
+      - name: Install consumer build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build patchelf binutils curl ca-certificates
+          curl --fail --location --retry 2 https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          echo 'deb https://apt.llvm.org/noble/ llvm-toolchain-noble main' | sudo tee /etc/apt/sources.list.d/llvm.list
+          sudo apt-get update
+          sudo apt-get install -y clang-23
       - run: dart pub get
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:

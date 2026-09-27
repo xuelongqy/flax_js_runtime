@@ -218,6 +218,9 @@ Future<void> main(List<String> args) async {
           .where((line) => line.startsWith('V8_') || line.startsWith('CPPGC_'))
           .toList()
         ..add('USING_V8_SHARED=1');
+  if (target.os == 'linux') {
+    defines.add('_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE');
+  }
   final out = Directory(p.join(source, outName));
   if (target.os == 'ios') {
     await _linkIosMonolith(out, target);
@@ -248,6 +251,23 @@ Future<void> main(List<String> args) async {
     Directory(p.join(source, 'include')),
     Directory(p.join(stage.path, 'include')),
   );
+  if (target.os == 'linux') {
+    final cxx = Directory(p.join(stage.path, 'include', 'c++'));
+    final config = File(p.join(cxx.path, 'config', '__config_site'));
+    config.parent.createSync(recursive: true);
+    final configSource = p.join(source, 'buildtools', 'third_party', 'libc++');
+    File(p.join(configSource, '__config_site')).copySync(config.path);
+    File(p.join(configSource, '__assertion_handler'))
+        .copySync(p.join(config.parent.path, '__assertion_handler'));
+    sdk.copyTree(
+      Directory(p.join(source, 'third_party', 'libc++', 'src', 'include')),
+      Directory(p.join(cxx.path, 'v1')),
+    );
+    sdk.copyTree(
+      Directory(p.join(source, 'third_party', 'libc++abi', 'src', 'include')),
+      Directory(p.join(cxx.path, 'abi')),
+    );
+  }
   sdk.copyNotices(Directory(source), Directory(p.join(stage.path, 'notices')));
   sdk.writeCmakeConfig(
     stage,
@@ -288,6 +308,7 @@ ${ios ? 'v8_enable_turbofan = false\nv8_enable_webassembly = false' : ''}
 v8_use_external_startup_data = false
 v8_enable_i18n_support = false
 use_custom_libcxx = ${target.os == 'linux'}
+${target.os == 'windows' ? 'use_custom_libcxx_for_host = false' : ''}
 v8_enable_sandbox = false
 v8_enable_pointer_compression = false
 symbol_level = 0

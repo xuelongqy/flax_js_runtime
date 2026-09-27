@@ -252,6 +252,7 @@ bool _systemLibrary(String value, SdkTarget target) {
           'vcruntime140.dll',
           'vcruntime140_1.dll',
           'msvcp140.dll',
+          'winmm.dll',
         }.contains(name);
   }
   if (target.os == 'android') {
@@ -384,13 +385,23 @@ endif()''');
     );
   }
   final target = 'FlaxEngineSDK::$engine';
+  final bundledLibcxx = engine == 'v8' && sdkTarget.os == 'linux';
+  if (bundledLibcxx) {
+    content.writeln('''if(NOT CMAKE_CXX_COMPILER_ID STREQUAL "Clang" OR CMAKE_CXX_COMPILER_VERSION VERSION_LESS 21)
+  message(FATAL_ERROR "Linux V8 SDK requires Clang 21 or newer with bundled libc++")
+endif()''');
+  }
+  final includeDirectories = bundledLibcxx
+      ? r'${_flax_sdk}/include/c++/config;${_flax_sdk}/include/c++/v1;${_flax_sdk}/include/c++/abi;${_flax_sdk}/include'
+      : r'${_flax_sdk}/include';
   content.writeln(
     'if(NOT TARGET $target)\n'
     '  add_library($target INTERFACE IMPORTED)\n'
     '  set_target_properties($target PROPERTIES\n'
-    '    INTERFACE_INCLUDE_DIRECTORIES "\${_flax_sdk}/include"\n'
+    '    INTERFACE_INCLUDE_DIRECTORIES ${cmakeQuote(includeDirectories)}\n'
     '    INTERFACE_COMPILE_FEATURES "cxx_std_$cxxStandard"\n'
     '    INTERFACE_COMPILE_DEFINITIONS ${cmakeQuote(defines.join(';'))}\n'
+    '${bundledLibcxx ? '    INTERFACE_COMPILE_OPTIONS "-nostdinc++"\n    INTERFACE_LINK_OPTIONS "-nostdlib++"\n' : ''}'
     '    INTERFACE_LINK_LIBRARIES ${cmakeQuote(targets.join(';'))})\nendif()',
   );
   config.writeAsStringSync(content.toString());

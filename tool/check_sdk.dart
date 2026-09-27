@@ -74,8 +74,16 @@ set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
       flags.addAll([
         '-DCMAKE_SYSTEM_NAME=Linux',
         '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
-        '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
+        if (engine == 'v8')
+          '-DCMAKE_CXX_COMPILER_TARGET=aarch64-linux-gnu'
+        else
+          '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
       ]);
+    }
+    if (engine == 'v8' && target.os == 'linux') {
+      flags.add(
+        '-DCMAKE_CXX_COMPILER=${Platform.environment['CXX'] ?? 'clang++-23'}',
+      );
     }
     await command('cmake', [
       '-S',
