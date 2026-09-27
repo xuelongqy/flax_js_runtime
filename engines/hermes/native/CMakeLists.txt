@@ -45,6 +45,11 @@ if(NOT CMAKE_CROSSCOMPILING)
   enable_testing()
   add_executable(flax_hermes_sdk_test sdk_test.cpp)
   target_link_libraries(flax_hermes_sdk_test PRIVATE hermesvm)
+  if(WIN32)
+    add_custom_command(TARGET flax_hermes_sdk_test POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:hermesvm> $<TARGET_FILE_DIR:flax_hermes_sdk_test>)
+  endif()
   add_test(NAME flax_hermes_sdk COMMAND flax_hermes_sdk_test)
   set_tests_properties(flax_hermes_sdk PROPERTIES TIMEOUT 30)
 endif()

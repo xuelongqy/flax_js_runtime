@@ -4,6 +4,7 @@
 #include <stdexcept>
 
 int main() {
+  std::cerr << "Hermes test entered main\n";
   try {
     auto config = hermes::vm::RuntimeConfig::Builder()
                       .withES6BlockScoping(true)
