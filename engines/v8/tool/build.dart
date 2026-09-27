@@ -342,6 +342,7 @@ v8_target_cpu = "$cpu"
 is_component_build = ${!monolith}
 v8_monolithic = $monolith
 v8_monolithic_for_shared_library = $monolith
+v8_enable_temporal_support = ${!monolith}
 ${monolith ? 'v8_expose_public_symbols = true' : ''}
 v8_jitless = $ios
 ${ios ? 'v8_enable_turbofan = false\nv8_enable_webassembly = false' : ''}
