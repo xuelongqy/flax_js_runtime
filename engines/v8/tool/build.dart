@@ -382,6 +382,8 @@ Future<void> _linkIosMonolith(Directory out, SdkTarget target) async {
         ? '-miphoneos-version-min=${target.minimumVersion}'
         : '-mios-simulator-version-min=${target.minimumVersion}',
     '-Wl,-force_load,${archive.path}',
+    '-framework',
+    'CoreFoundation',
     '-Wl,-install_name,@rpath/libv8.dylib',
     '-o',
     result,
