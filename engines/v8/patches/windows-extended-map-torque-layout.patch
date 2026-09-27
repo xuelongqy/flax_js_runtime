@@ -14,6 +14,17 @@ diff --git a/src/objects/map.h b/src/objects/map.h
  } V8_OBJECT_END;
  
  constexpr int ExtendedMapSizeForKind(ExtendedMapKind kind);
+diff --git a/src/objects/map.tq b/src/objects/map.tq
+--- a/src/objects/map.tq
++++ b/src/objects/map.tq
+@@ -116,5 +116,6 @@
+ @doNotGenerateCast
+ extern class ExtendedMap extends Map {
+   bit_field_ex: ExtendedMapBitFields;
++  @if(V8_OS_WIN) windows_padding[3]: uint8;
+-  // Leaves kTaggedSize-1 unused bytes, they will be used by subclasses.
++  // Other platforms leave bytes for subclasses to use.
+ }
 diff --git a/src/objects/js-interceptor-map.h b/src/objects/js-interceptor-map.h
 --- a/src/objects/js-interceptor-map.h
 +++ b/src/objects/js-interceptor-map.h
