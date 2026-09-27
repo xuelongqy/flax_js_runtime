@@ -102,21 +102,23 @@ Future<void> main(List<String> args) async {
   };
   final patches = (input['patches'] as List<Object?>)
       .cast<Map<String, Object?>>();
+  final buildSource = Directory(p.join(source, 'build'));
   for (final patch in patches) {
     final file = File(p.join(package.path, 'patches', patch['file'] as String));
     await sdk.requireDigest(file, patch['sha256'] as String);
+    if (!buildSource.existsSync()) continue;
     final applied = await Process.run('git', [
       'apply',
       '--reverse',
       '--check',
       file.path,
-    ], workingDirectory: p.join(source, 'build'));
+    ], workingDirectory: buildSource.path);
     if (applied.exitCode == 0) {
       await sdk.command('git', [
         'apply',
         '--reverse',
         file.path,
-      ], directory: p.join(source, 'build'));
+      ], directory: buildSource.path);
     }
   }
   await sdk.command(
