@@ -15,11 +15,15 @@
       },
       {
         "file": "hermes-windows-shared.patch",
-        "sha256": "f19c61621321169cebdf0932df61dde468f150dad3163daf8c0b3b3ae290ab36"
+        "sha256": "945f651a2ba01ff45deb360009530c0f900d38eb703fa5a457aec131df90a06d"
       },
       {
         "file": "hermes-android-unicode-lite.patch",
         "sha256": "7cabccd000d50cc3f479ed137f1e82c37a7b183cfa79c18229308edabe0bbc83"
+      },
+      {
+        "file": "hermes-apple-sysroot.patch",
+        "sha256": "113ce15935a29d6743086c57e9c27ab4593ef4068466fd226ca6c7a406563157"
       }
     ]
   },

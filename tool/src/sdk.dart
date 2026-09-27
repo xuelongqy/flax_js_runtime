@@ -342,7 +342,8 @@ endif()''',
     );
     if (sdkTarget.appleSdk != null) {
       content.writeln(
-        '''if(CMAKE_OSX_SYSROOT AND NOT CMAKE_OSX_SYSROOT MATCHES "${sdkTarget.appleSdk}")
+        '''string(TOLOWER "\${CMAKE_OSX_SYSROOT}" _flax_sdk_sysroot)
+if(_flax_sdk_sysroot AND NOT _flax_sdk_sysroot MATCHES "${sdkTarget.appleSdk}")
   message(FATAL_ERROR "This engine SDK requires ${sdkTarget.appleSdk}")
 endif()''',
       );

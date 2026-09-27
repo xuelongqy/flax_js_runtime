@@ -47,11 +47,18 @@ set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
 ''');
     final flags = <String>[];
     if (target.isApple) {
+      final iosSdk = target.appleSdk == null
+          ? null
+          : await command('xcrun', [
+              '--sdk',
+              target.appleSdk!,
+              '--show-sdk-path',
+            ], capture: true);
       flags.addAll([
         '-DCMAKE_OSX_ARCHITECTURES=${target.architecture == 'x64' ? 'x86_64' : 'arm64'}',
         '-DCMAKE_OSX_DEPLOYMENT_TARGET=${target.minimumVersion}',
         if (target.appleSdk != null) '-DCMAKE_SYSTEM_NAME=iOS',
-        if (target.appleSdk != null) '-DCMAKE_OSX_SYSROOT=${target.appleSdk}',
+        if (iosSdk != null) '-DCMAKE_OSX_SYSROOT=$iosSdk',
       ]);
     }
     if (target.os == 'android') {

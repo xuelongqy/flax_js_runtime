@@ -59,12 +59,19 @@ Future<void> main(List<String> args) async {
   final build = p.join(package.path, 'build', 'native', target.id);
   final flags = <String>[];
   if (target.isApple) {
+    final iosSdk = target.appleSdk == null
+        ? null
+        : await sdk.command('xcrun', [
+            '--sdk',
+            target.appleSdk!,
+            '--show-sdk-path',
+          ], capture: true);
     flags.addAll([
       '-DCMAKE_OSX_ARCHITECTURES=${target.architecture == 'x64' ? 'x86_64' : 'arm64'}',
       '-DCMAKE_OSX_DEPLOYMENT_TARGET=${target.minimumVersion}',
       '-DHERMES_APPLE_TARGET_PLATFORM=${target.appleSdk ?? ''}',
       if (target.os == 'ios') '-DCMAKE_SYSTEM_NAME=iOS',
-      if (target.os == 'ios') '-DCMAKE_OSX_SYSROOT=${target.appleSdk}',
+      if (iosSdk != null) '-DCMAKE_OSX_SYSROOT=$iosSdk',
     ]);
   }
   if (target.os == 'android') {

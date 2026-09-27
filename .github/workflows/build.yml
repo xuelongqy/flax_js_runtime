@@ -186,7 +186,7 @@ jobs:
       - name: Install baseline tools
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils pkg-config libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev
           curl --fail --location --retry 2 --output /tmp/git-2.50.1.tar.xz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.50.1.tar.xz
           echo '7e3e6c36decbd8f1eedd14d42db6674be03671c2204864befa2a41756c5c8fc4  /tmp/git-2.50.1.tar.xz' | sha256sum -c -
           tar -xf /tmp/git-2.50.1.tar.xz -C /tmp

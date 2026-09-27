@@ -1,6 +1,6 @@
 --- a/lib/CMakeLists.txt
 +++ b/lib/CMakeLists.txt
-@@ -224,5 +224,10 @@
+@@ -224,5 +224,12 @@
  if(APPLE)
    target_link_libraries(hermesvm PRIVATE -force_load hermesvm_a)
    target_link_libraries(hermesvmlean PRIVATE -force_load hermesvmlean_a)
@@ -9,6 +9,8 @@
 +  target_link_libraries(hermesvmlean PRIVATE hermesvmlean_a)
 +  target_link_options(hermesvm PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:hermesvm_a>")
 +  target_link_options(hermesvmlean PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:hermesvmlean_a>")
++  target_link_options(hermesvm PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:jsi>")
++  target_link_options(hermesvmlean PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:jsi>")
  else()
    target_link_libraries(hermesvm PRIVATE
 --- a/include/hermes/VM/static_h.h
