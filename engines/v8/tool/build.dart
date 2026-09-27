@@ -349,7 +349,7 @@ ${ios ? 'target_environment = "${target.appleSdk == 'iphoneos' ? 'device' : 'sim
 }
 
 Future<void> _linkIosMonolith(Directory out, SdkTarget target) async {
-  final archive = File(p.join(out.path, 'libv8_monolith.a'));
+  final archive = File(p.join(out.path, 'obj', 'libv8_monolith.a'));
   if (!archive.existsSync()) throw StateError('Missing iOS V8 monolith');
   final result = p.join(out.path, 'libv8.dylib');
   final sdkPath = await sdk.command('xcrun', [
@@ -377,7 +377,7 @@ Future<void> _linkIosMonolith(Directory out, SdkTarget target) async {
 }
 
 Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
-  final archive = File(p.join(out.path, 'libv8_monolith.a'));
+  final archive = File(p.join(out.path, 'obj', 'libv8_monolith.a'));
   if (!archive.existsSync()) throw StateError('Missing Android V8 monolith');
   final compiler = switch (target.architecture) {
     'arm32' => 'armv7a-linux-androideabi24-clang++',
@@ -398,7 +398,7 @@ Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
 }
 
 Future<void> _linkWindowsMonolith(Directory out, SdkTarget target) async {
-  final archive = File(p.join(out.path, 'v8_monolith.lib'));
+  final archive = File(p.join(out.path, 'obj', 'v8_monolith.lib'));
   if (!archive.existsSync()) throw StateError('Missing Windows V8 monolith');
   await sdk.command('link.exe', [
     '/NOLOGO',
