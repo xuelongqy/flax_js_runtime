@@ -25,6 +25,10 @@
       {
         "file": "hermes-apple-sysroot.patch",
         "sha256": "113ce15935a29d6743086c57e9c27ab4593ef4068466fd226ca6c7a406563157"
+      },
+      {
+        "file": "hermes-gcc-noinline-linkage.patch",
+        "sha256": "d39d35f183b745a4a4737884660c70696a9e56b9156a8429414cfb7588347264"
       }
     ]
   },

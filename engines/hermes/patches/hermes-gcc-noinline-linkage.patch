@@ -1,0 +1,194 @@
+diff --git a/lib/VM/Operations.cpp b/lib/VM/Operations.cpp
+--- a/lib/VM/Operations.cpp
++++ b/lib/VM/Operations.cpp
+@@ -3215,74 +3215,64 @@
+ }
+ } // namespace
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_sub_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_sub_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return binOpImpl<doSub, BigIntPrimitive::subtract>(shr, a, b);
+ }
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_mul_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_mul_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return binOpImpl<doMul, BigIntPrimitive::multiply>(shr, a, b);
+ }
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_div_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_div_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return binOpImpl<doDiv, BigIntPrimitive::divide>(shr, a, b);
+ }
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_mod_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_mod_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return binOpImpl<doMod, BigIntPrimitive::remainder>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_inc_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_inc_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *n) {
+   return incDecOperImpl<doInc, BigIntPrimitive::inc>(shr, n);
+ }
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_dec_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_dec_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *n) {
+   return incDecOperImpl<doDec, BigIntPrimitive::dec>(shr, n);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_bit_and_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_bit_and_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return bitOperImpl<doBitAnd, BigIntPrimitive::bitwiseAND>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_bit_or_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_bit_or_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return bitOperImpl<doBitOr, BigIntPrimitive::bitwiseOR>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_bit_xor_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_bit_xor_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+   return bitOperImpl<doBitXor, BigIntPrimitive::bitwiseXOR>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_left_shift_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_left_shift_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+@@ -3290,8 +3280,7 @@
+       shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_unsigned_right_shift_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_unsigned_right_shift_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+@@ -3301,8 +3290,7 @@
+       BigIntPrimitive::unsignedRightShift>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_right_shift_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_right_shift_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+@@ -3312,8 +3300,7 @@
+       BigIntPrimitive::signedRightShift>(shr, a, b);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_bit_not_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_bit_not_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *n) {
+   Handle<> nHandle{toPHV(n)};
+@@ -3342,8 +3329,7 @@
+   return *res;
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_minus_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_minus_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *n) {
+   // Fast path, n is a number.
+@@ -3375,8 +3361,7 @@
+   return toBoolean(HermesValue::fromRaw(b.raw));
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" bool _sh_ljs_equal_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE bool _sh_ljs_equal_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *a,
+     const SHLegacyValue *b) {
+@@ -3396,13 +3381,11 @@
+       HermesValue::fromRaw(a.raw), HermesValue::fromRaw(b.raw));
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_typeof(SHRuntime *shr, SHLegacyValue *v) {
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_typeof(SHRuntime *shr, SHLegacyValue *v) {
+   return typeOf(getRuntime(shr), Handle<>::vmcast(toPHV(v)));
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" bool _sh_ljs_typeof_is(SHLegacyValue val, uint16_t typesRaw) {
++extern "C" LLVM_ATTRIBUTE_NOINLINE bool _sh_ljs_typeof_is(SHLegacyValue val, uint16_t typesRaw) {
+   hermes::TypeOfIsTypes types(typesRaw);
+   HermesValue hv = HermesValue::fromRaw(val.raw);
+   return matchTypeOfIs(hv, types);
+@@ -3435,8 +3418,7 @@
+   }
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_instance_of_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_instance_of_rjs(
+     SHRuntime *shr,
+     SHLegacyValue *object,
+     SHLegacyValue *constructor) {
+@@ -3452,8 +3434,7 @@
+   return _sh_ljs_bool(*cr);
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_iterator_begin_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_iterator_begin_rjs(
+     SHRuntime *shr,
+     SHLegacyValue *src) {
+   auto res = [&]() -> CallResult<HermesValue> {
+@@ -3495,8 +3476,7 @@
+   return *res;
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" SHLegacyValue _sh_ljs_iterator_next_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE SHLegacyValue _sh_ljs_iterator_next_rjs(
+     SHRuntime *shr,
+     SHLegacyValue *iteratorOrIdx,
+     const SHLegacyValue *srcOrNext) {
+@@ -3591,8 +3571,7 @@
+   return *res;
+ }
+ 
+-LLVM_ATTRIBUTE_NOINLINE
+-extern "C" void _sh_ljs_iterator_close_rjs(
++extern "C" LLVM_ATTRIBUTE_NOINLINE void _sh_ljs_iterator_close_rjs(
+     SHRuntime *shr,
+     const SHLegacyValue *iteratorOrIdx,
+     bool ignoreExceptions) {
