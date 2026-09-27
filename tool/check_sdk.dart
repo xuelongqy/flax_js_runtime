@@ -39,7 +39,7 @@ Future<void> main(List<String> args) async {
     File(p.join(temp.path, 'CMakeLists.txt')).writeAsStringSync('''
 cmake_minimum_required(VERSION 3.24)
 project(sdk_consumer LANGUAGES CXX)
-find_package(FlaxEngineSDK CONFIG REQUIRED PATHS "\${CMAKE_CURRENT_SOURCE_DIR}/sdk/cmake" NO_DEFAULT_PATH)
+find_package(FlaxEngineSDK CONFIG REQUIRED PATHS "\${CMAKE_CURRENT_SOURCE_DIR}/sdk/cmake" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 add_executable(sdk_consumer main.cpp)
 target_link_libraries(sdk_consumer PRIVATE FlaxEngineSDK::$engine)
 set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
