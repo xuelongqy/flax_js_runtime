@@ -243,6 +243,7 @@ Future<void> main(List<String> args) async {
             gn,
             ['desc', outName, ':v8_headers', 'defines'],
             directory: source,
+            environment: env,
             capture: true,
           ))
           .split('\n')
