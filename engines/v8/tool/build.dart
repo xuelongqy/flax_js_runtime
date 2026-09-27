@@ -41,7 +41,11 @@ Future<void> main(List<String> args) async {
   final package = Directory.fromUri(Platform.script.resolve('../'));
   final root = Directory.fromUri(Platform.script.resolve('../../../'));
   final input = sdk.readJson(p.join(package.path, 'engine.json'));
-  const ninja = 'ninja';
+  final ninja = (await sdk.command(
+    Platform.isWindows ? 'where.exe' : 'which',
+    ['ninja'],
+    capture: true,
+  )).split('\n').first;
   final expectedTools = Map<String, Object?>.from(input['hostTools'] as Map);
   final actualTools = <String, String>{
     'cmake': (await sdk.command('cmake', [

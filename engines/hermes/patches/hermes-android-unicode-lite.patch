@@ -1,0 +1,7 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -730,3 +730,3 @@
+-if(HERMES_IS_ANDROID)
++if(HERMES_IS_ANDROID AND (NOT HERMES_UNICODE_LITE OR HERMES_ENABLE_INTL))
+   find_package(fbjni REQUIRED CONFIG)
+ endif()
