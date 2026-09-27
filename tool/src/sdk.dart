@@ -137,10 +137,38 @@ Future<List<String>> stageLibraries(
   List<File> inputs,
   SdkTarget target,
 ) async {
+  final files = [...inputs];
+  if (target.os == 'android') {
+    final ndk = Platform.environment['ANDROID_NDK_HOME'];
+    if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
+    final hosts = Directory(p.join(ndk, 'toolchains', 'llvm', 'prebuilt'))
+        .listSync()
+        .whereType<Directory>()
+        .toList();
+    if (hosts.length != 1) throw StateError('Expected one Android NDK host');
+    final triple = switch (target.architecture) {
+      'arm32' => 'arm-linux-androideabi',
+      'arm64' => 'aarch64-linux-android',
+      'x64' => 'x86_64-linux-android',
+      _ => throw StateError('Unsupported Android architecture'),
+    };
+    files.add(
+      File(
+        p.join(
+          hosts.single.path,
+          'sysroot',
+          'usr',
+          'lib',
+          triple,
+          'libc++_shared.so',
+        ),
+      ),
+    );
+  }
   final libraries = <String>[];
   final names = <String>{};
   final installNames = <String, String>{};
-  for (final file in inputs) {
+  for (final file in files) {
     final name = p.basename(file.path);
     if (!file.existsSync() || !names.add(name)) {
       throw StateError('Missing or duplicate SDK library: ${file.path}');

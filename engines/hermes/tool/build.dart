@@ -156,24 +156,7 @@ Future<void> _prepareAssets(
     throw StateError(
       'Expected one Hermes shared library, found ${matches.length}',
     );
-  final inputs = <File>[matches.single];
-  if (target.os == 'android') {
-    final ndk = Platform.environment['ANDROID_NDK_HOME']!;
-    inputs.add(
-      File(
-        p.join(
-          ndk,
-          'sources',
-          'cxx-stl',
-          'llvm-libc++',
-          'libs',
-          target.androidAbi,
-          'libc++_shared.so',
-        ),
-      ),
-    );
-  }
-  final libraries = await sdk.stageLibraries(stage, inputs, target);
+  final libraries = await sdk.stageLibraries(stage, [matches.single], target);
   sdk.copyHeaders(
     Directory(p.join(upstreamSource.path, 'public')),
     Directory(p.join(stage.path, 'include')),
