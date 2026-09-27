@@ -188,6 +188,7 @@ jobs:
     timeout-minutes: 360
     steps:
       - name: Install baseline tools
+        if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         run: |
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils pkg-config libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
@@ -203,17 +204,20 @@ jobs:
           test "$(git --version)" = 'git version 2.50.1'
           python3 -m pip install 'cmake>=3.24,<5'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         with:
           persist-credentials: false
       - uses: dart-lang/setup-dart@v1
+        if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         with:
           sdk: 3.13.2
           architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
-      - run: dart pub get
+      - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
+        run: dart pub get
       - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        if: always()
+        if: always() && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target))
         with:
           name: sdk-${{ matrix.target }}
           path: |
