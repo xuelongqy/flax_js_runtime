@@ -1,3 +1,15 @@
+diff --git a/config/win/BUILD.gn b/config/win/BUILD.gn
+--- a/config/win/BUILD.gn
++++ b/config/win/BUILD.gn
+@@ -305,7 +305,7 @@
+ # manually override this config for their compiles.
+ config("winver") {
+   defines = [
+-    "NTDDI_VERSION=NTDDI_WIN11_BR",
++    "NTDDI_VERSION=NTDDI_WIN11_GE",
+
+     # We can't say `=_WIN32_WINNT_WIN10` here because some files do
+     # `#if WINVER < 0x0600` without including windows.h before,
 diff --git a/toolchain/win/setup_toolchain.py b/toolchain/win/setup_toolchain.py
 index e7651ec9f..bce79d530 100644
 --- a/toolchain/win/setup_toolchain.py
