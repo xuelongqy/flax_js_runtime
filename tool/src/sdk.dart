@@ -547,12 +547,12 @@ Future<void> _verifyArchitecture(File file, SdkTarget target) async {
       '-show-build',
       file.path,
     ], capture: true);
-    final platform = RegExp(r'platform\s+(IOS|IOSSIMULATOR)')
+    final platform = RegExp(r'platform\s+(IOSSIMULATOR|IOS)\b')
         .firstMatch(kind)
         ?.group(1);
     if (target.os == 'ios' &&
         platform != (target.appleSdk == 'iphoneos' ? 'IOS' : 'IOSSIMULATOR')) {
-      throw StateError('Wrong iOS SDK in ${file.path}');
+      throw StateError('Wrong iOS SDK in ${file.path}: found $platform');
     }
     return;
   }
