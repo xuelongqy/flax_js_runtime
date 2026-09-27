@@ -9,6 +9,7 @@ int main() {
                       .withES6BlockScoping(true)
                       .withMicrotaskQueue(true)
                       .build();
+    std::cerr << "Creating Hermes runtime\n";
     auto runtime = facebook::hermes::makeHermesRuntime(config);
     auto source = std::make_shared<facebook::jsi::StringBuffer>(R"JS(
       (() => {
@@ -25,7 +26,9 @@ int main() {
         return new Uint8Array(moved)[0];
       })()
     )JS");
+    std::cerr << "Evaluating Hermes test script\n";
     const auto value = runtime->evaluateJavaScript(source, "sdk:hermes");
+    std::cerr << "Hermes test script returned\n";
     if (!value.isNumber() || value.getNumber() != 42)
       throw std::runtime_error("Unexpected result");
     std::cout << "Hermes shared SDK: evaluation and transfer passed\n";

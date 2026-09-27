@@ -105,6 +105,8 @@ Future<void> main(List<String> args) async {
         'Ninja',
         '-DCMAKE_BUILD_TYPE=Release',
         '-DHERMES_ENABLE_TEST_SUITE=OFF',
+        '-DHERMES_ENABLE_INTL=OFF',
+        '-DHERMES_UNICODE_LITE=ON',
         '-DCMAKE_POLICY_VERSION_MINIMUM=3.5',
       ]);
       await _run('cmake', [
