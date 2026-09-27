@@ -11,6 +11,10 @@
       "sha256": "0ecce99b9bead022a3a59d90c903b6ab39d872e7a9937a8ee4aac3d2236b7596"
     },
     {
+      "file": "windows-sdk-26100.patch",
+      "sha256": "ac0d7d3c42256ceb8ff2d7560b3f44a9c661a27d74f81e0525411f5af8214f09"
+    },
+    {
       "file": "monolith-libplatform.patch",
       "sha256": "871b839943fc12faaf1f12da37762963262570567961eb5a36ab2780790c1e2e",
       "directory": "source"
