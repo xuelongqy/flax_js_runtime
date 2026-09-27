@@ -11,8 +11,8 @@
       "sha256": "0ecce99b9bead022a3a59d90c903b6ab39d872e7a9937a8ee4aac3d2236b7596"
     },
     {
-      "file": "windows-monolith-libplatform.patch",
-      "sha256": "32d3e3d976fe3feba2ee8dfec4a91cc058d410a7a55b0971d953f1e453500bb7",
+      "file": "monolith-libplatform.patch",
+      "sha256": "871b839943fc12faaf1f12da37762963262570567961eb5a36ab2780790c1e2e",
       "directory": "source"
     }
   ],

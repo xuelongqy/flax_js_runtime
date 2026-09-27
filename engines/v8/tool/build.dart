@@ -239,7 +239,7 @@ Future<void> main(List<String> args) async {
           .where((line) => line.startsWith('V8_') || line.startsWith('CPPGC_'))
           .toList()
         ..add('USING_V8_SHARED=1');
-  if (target.os == 'windows') defines.add('USING_V8_PLATFORM_SHARED=1');
+  if (monolith) defines.add('USING_V8_PLATFORM_SHARED=1');
   if (target.os == 'linux') {
     defines.add('_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE');
   }
@@ -331,7 +331,7 @@ v8_target_cpu = "$cpu"
 is_component_build = ${!monolith}
 v8_monolithic = $monolith
 v8_monolithic_for_shared_library = $monolith
-${target.os == 'windows' ? 'v8_expose_public_symbols = true' : ''}
+${monolith ? 'v8_expose_public_symbols = true' : ''}
 v8_jitless = $ios
 ${ios ? 'v8_enable_turbofan = false\nv8_enable_webassembly = false' : ''}
 v8_use_external_startup_data = false

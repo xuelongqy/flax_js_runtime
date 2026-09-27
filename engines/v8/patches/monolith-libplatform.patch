@@ -6,6 +6,6 @@ diff --git a/BUILD.gn b/BUILD.gn
    v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
  
 -  if (is_component_build) {
-+  if (is_component_build || (is_win && v8_monolithic_for_shared_library)) {
++  if (is_component_build || v8_monolithic_for_shared_library) {
      defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
    }
