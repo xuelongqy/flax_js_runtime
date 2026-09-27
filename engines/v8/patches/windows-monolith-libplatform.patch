@@ -1,0 +1,11 @@
+diff --git a/BUILD.gn b/BUILD.gn
+--- a/BUILD.gn
++++ b/BUILD.gn
+@@ -7536,6 +7536,6 @@ v8_component("v8_libplatform") {
+   v8_add_configs += [ "//build/config/compiler:thinlto_optimize_max" ]
+   v8_remove_configs += [ "//build/config/compiler:thinlto_optimize_default" ]
+ 
+-  if (is_component_build) {
++  if (is_component_build || (is_win && v8_monolithic_for_shared_library)) {
+     defines = [ "BUILDING_V8_PLATFORM_SHARED" ]
+   }

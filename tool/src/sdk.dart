@@ -253,6 +253,9 @@ bool _systemLibrary(String value, SdkTarget target) {
           'vcruntime140_1.dll',
           'msvcp140.dll',
           'winmm.dll',
+          'icu.dll',
+          'icuuc.dll',
+          'icuin.dll',
         }.contains(name);
   }
   if (target.os == 'android') {

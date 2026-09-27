@@ -71,6 +71,28 @@ Future<void> main(List<String> args) async {
   final cache = sdk.sourceCache(package).path;
   final source = p.join(cache, 'v8');
   final depot = p.join(cache, 'depot_tools');
+  final patches = (input['patches'] as List<Object?>)
+      .cast<Map<String, Object?>>();
+  for (final patch in patches) {
+    final file = File(p.join(package.path, 'patches', patch['file'] as String));
+    await sdk.requireDigest(file, patch['sha256'] as String);
+    if (patch['directory'] != 'source' ||
+        !Directory(p.join(source, '.git')).existsSync())
+      continue;
+    final applied = await Process.run('git', [
+      'apply',
+      '--reverse',
+      '--check',
+      file.path,
+    ], workingDirectory: source);
+    if (applied.exitCode == 0) {
+      await sdk.command('git', [
+        'apply',
+        '--reverse',
+        file.path,
+      ], directory: source);
+    }
+  }
   await _checkout(
     source,
     'https://chromium.googlesource.com/v8/v8.git',
@@ -108,12 +130,10 @@ Future<void> main(List<String> args) async {
       environment: env,
     );
   }
-  final patches = (input['patches'] as List<Object?>)
-      .cast<Map<String, Object?>>();
   final buildSource = Directory(p.join(source, 'build'));
   for (final patch in patches) {
+    if (patch['directory'] == 'source') continue;
     final file = File(p.join(package.path, 'patches', patch['file'] as String));
-    await sdk.requireDigest(file, patch['sha256'] as String);
     if (!buildSource.existsSync()) continue;
     final applied = await Process.run('git', [
       'apply',
@@ -148,22 +168,22 @@ Future<void> main(List<String> args) async {
   }
   for (final patch in patches) {
     final file = File(p.join(package.path, 'patches', patch['file'] as String));
+    final directory = patch['directory'] == 'source'
+        ? source
+        : p.join(source, 'build');
     final alreadyApplied = await Process.run('git', [
       'apply',
       '--reverse',
       '--check',
       file.path,
-    ], workingDirectory: p.join(source, 'build'));
+    ], workingDirectory: directory);
     if (alreadyApplied.exitCode == 0) continue;
     await sdk.command('git', [
       'apply',
       '--check',
       file.path,
-    ], directory: p.join(source, 'build'));
-    await sdk.command('git', [
-      'apply',
-      file.path,
-    ], directory: p.join(source, 'build'));
+    ], directory: directory);
+    await sdk.command('git', ['apply', file.path], directory: directory);
   }
   var gnArgs = _gnArgs(target);
   final localSdk = Platform.environment['FLAX_V8_MAC_SDK_PATH'];
@@ -187,7 +207,8 @@ Future<void> main(List<String> args) async {
     Platform.isWindows ? 'gn.exe' : 'gn',
   );
   final outName = 'out/flax-sdk-${target.id}';
-  final monolith = target.os == 'ios' || target.os == 'android';
+  final monolith =
+      target.os == 'ios' || target.os == 'android' || target.os == 'windows';
   await sdk.command(
     gn,
     ['gen', outName, '--args=$gnArgs'],
@@ -218,6 +239,7 @@ Future<void> main(List<String> args) async {
           .where((line) => line.startsWith('V8_') || line.startsWith('CPPGC_'))
           .toList()
         ..add('USING_V8_SHARED=1');
+  if (target.os == 'windows') defines.add('USING_V8_PLATFORM_SHARED=1');
   if (target.os == 'linux') {
     defines.add('_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE');
   }
@@ -226,12 +248,18 @@ Future<void> main(List<String> args) async {
     await _linkIosMonolith(out, target);
   } else if (target.os == 'android') {
     await _linkAndroidMonolith(out, target);
+  } else if (target.os == 'windows') {
+    await _linkWindowsMonolith(out, target);
   }
   final libraries =
       out
           .listSync(recursive: true, followLinks: false)
           .whereType<File>()
-          .where((file) => file.path.endsWith(target.extension))
+          .where(
+            (file) =>
+                file.path.endsWith(target.extension) &&
+                (target.os != 'windows' || p.basename(file.path) == 'v8.dll'),
+          )
           .toList()
         ..sort((a, b) => a.path.compareTo(b.path));
   if (!libraries.any(
@@ -295,7 +323,7 @@ String _gnArgs(SdkTarget target) {
   };
   final cpu = target.architecture == 'arm32' ? 'arm' : target.architecture;
   final ios = target.os == 'ios';
-  final monolith = ios || target.os == 'android';
+  final monolith = ios || target.os == 'android' || target.os == 'windows';
   return '''is_debug = false
 target_os = "$os"
 target_cpu = "$cpu"
@@ -303,6 +331,7 @@ v8_target_cpu = "$cpu"
 is_component_build = ${!monolith}
 v8_monolithic = $monolith
 v8_monolithic_for_shared_library = $monolith
+${target.os == 'windows' ? 'v8_expose_public_symbols = true' : ''}
 v8_jitless = $ios
 ${ios ? 'v8_enable_turbofan = false\nv8_enable_webassembly = false' : ''}
 v8_use_external_startup_data = false
@@ -365,5 +394,23 @@ Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
     '-Wl,-soname,libv8.so',
     '-o',
     p.join(out.path, 'libv8.so'),
+  ]);
+}
+
+Future<void> _linkWindowsMonolith(Directory out, SdkTarget target) async {
+  final archive = File(p.join(out.path, 'v8_monolith.lib'));
+  if (!archive.existsSync()) throw StateError('Missing Windows V8 monolith');
+  await sdk.command('link.exe', [
+    '/NOLOGO',
+    '/DLL',
+    '/MACHINE:${target.architecture == 'arm64' ? 'ARM64' : 'X64'}',
+    '/WHOLEARCHIVE:${archive.path}',
+    '/OUT:${p.join(out.path, 'v8.dll')}',
+    '/IMPLIB:${p.join(out.path, 'v8.lib')}',
+    archive.path,
+    'dbghelp.lib',
+    'winmm.lib',
+    'ws2_32.lib',
+    'advapi32.lib',
   ]);
 }

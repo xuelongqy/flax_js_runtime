@@ -9,6 +9,11 @@
     {
       "file": "mac-component-headerpad.patch",
       "sha256": "0ecce99b9bead022a3a59d90c903b6ab39d872e7a9937a8ee4aac3d2236b7596"
+    },
+    {
+      "file": "windows-monolith-libplatform.patch",
+      "sha256": "32d3e3d976fe3feba2ee8dfec4a91cc058d410a7a55b0971d953f1e453500bb7",
+      "directory": "source"
     }
   ],
   "gnArgs": "is_debug = false\ntarget_cpu = \"arm64\"\nv8_target_cpu = \"arm64\"\nv8_monolithic = false\nv8_monolithic_for_shared_library = false\nis_component_build = true\nv8_use_external_startup_data = false\nv8_enable_i18n_support = false\nuse_custom_libcxx = false\nv8_enable_sandbox = false\nv8_enable_pointer_compression = false\nsymbol_level = 0\ntreat_warnings_as_errors = false\nmac_deployment_target = \"15.0\"\nuse_remoteexec = false\n",
