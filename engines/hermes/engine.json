@@ -28,7 +28,7 @@
       },
       {
         "file": "hermes-gcc-noinline-linkage.patch",
-        "sha256": "d39d35f183b745a4a4737884660c70696a9e56b9156a8429414cfb7588347264"
+        "sha256": "80dbae7c689381cadb31dcead01cba239a9acad0969d5ac57c494d3ba96fce66"
       }
     ]
   },
