@@ -293,10 +293,11 @@ Future<List<String>> libraryDependencies(File file, SdkTarget target) async {
       '/DEPENDENTS',
       file.path,
     ], capture: true);
-    return RegExp(r'(?im)^\s*([\w.-]+\.dll)\s*$')
-        .allMatches(output)
-        .map((m) => m.group(1)!)
-        .toList();
+    return RegExp(
+      r'^\s*([\w.-]+\.dll)\s*$',
+      caseSensitive: false,
+      multiLine: true,
+    ).allMatches(output).map((m) => m.group(1)!).toList();
   }
   final output = await command('readelf', ['-d', file.path], capture: true);
   return RegExp(r'\(NEEDED\).*\[([^\]]+)\]')

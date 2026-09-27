@@ -97,6 +97,7 @@ Future<void> main(List<String> args) async {
   );
   final env = {
     'DEPOT_TOOLS_UPDATE': '0',
+    if (Platform.isWindows) 'DEPOT_TOOLS_WIN_TOOLCHAIN': '0',
     'PATH':
         '$depot${Platform.isWindows ? ';' : ':'}${Platform.environment['PATH'] ?? ''}',
   };
