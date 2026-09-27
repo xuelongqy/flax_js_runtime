@@ -1,61 +1,49 @@
-name: Runtime release
+name: Publish engine SDK
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'release.json'
-      - '.github/workflows/release.yml'
+  workflow_dispatch:
+    inputs:
+      candidate_run_id:
+        description: Successful Engine builds workflow run containing both SDKs
+        required: true
 permissions:
-  contents: read
-env:
-  RELEASE_VERSION: 0.1.0
+  contents: write
+  actions: read
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        engine: [hermes, v8]
-    runs-on: ${{ matrix.engine == 'v8' && 'macos-26' || 'macos-15' }}
-    timeout-minutes: 180
+  publish:
+    runs-on: macos-26
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          persist-credentials: true
+          persist-credentials: false
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: 3.13.2
-      - name: Select pinned V8 host tools
-        if: matrix.engine == 'v8'
-        run: sudo xcode-select --switch /Applications/Xcode_26.6.app/Contents/Developer
       - run: brew install cmake ninja
       - run: dart pub get
-      - run: dart run tool/build.dart --engine=${{ matrix.engine }}
-      - run: dart run tool/package.dart --engine=${{ matrix.engine }}
-      - name: Validate release version
+      - name: Verify tag and candidate commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_RUN: ${{ inputs.candidate_run_id }}
         run: |
-          VERSION="${RELEASE_VERSION#v}"
-          test "$VERSION" = "0.1.0"
-          test -s "dist/flax-js-runtime-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz"
-      - name: Preserve release package
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: runtime-${{ matrix.engine }}
-          path: dist/*.tar.gz
-          retention-days: 1
-
-  publish:
-    needs: build
-    runs-on: ubuntu-24.04
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v5
-        with:
-          pattern: runtime-*
-          path: dist
-          merge-multiple: true
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: v0.1.0
-          target_commitish: ${{ github.sha }}
-          files: dist/*.tar.gz
+          test "${{ github.ref_type }}" = tag
+          test "${{ github.ref_name }}" = "v$(jq -r .runtimeVersion runtime.json)"
+          test "$(gh run view "$CANDIDATE_RUN" --json headSha --jq .headSha)" = "$GITHUB_SHA"
+          test "$(gh run view "$CANDIDATE_RUN" --json conclusion --jq .conclusion)" = success
+          mkdir -p dist
+          gh run download "$CANDIDATE_RUN" --pattern 'sdk-*' --dir dist
+          find dist -name '*.tar.gz' -exec mv {} dist/ \;
+      - name: Verify exact candidate archives
+        run: |
+          VERSION=$(jq -r .runtimeVersion runtime.json)
+          for ENGINE in hermes v8; do
+            ARCHIVE="dist/flax-engine-sdk-$VERSION-$ENGINE-macos-arm64.tar.gz"
+            test -s "$ARCHIVE"
+            mkdir -p "build/release/$ENGINE"
+            tar -xzf "$ARCHIVE" -C "build/release/$ENGINE"
+            dart run tool/check_sdk.dart "$ENGINE" "build/release/$ENGINE"
+          done
+          shasum -a 256 dist/*.tar.gz > dist/SHA256SUMS.txt
+      - name: Publish verified bytes
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS.txt --verify-tag --title "$GITHUB_REF_NAME"

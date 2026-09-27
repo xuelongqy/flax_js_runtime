@@ -4,17 +4,15 @@ on:
   push:
     branches: [main]
     paths:
-      - 'abi/**'
       - 'engines/**'
-      - 'tool/build.dart'
-      - 'tool/package.dart'
+      - 'tool/**'
+      - 'runtime.json'
       - '.github/workflows/build.yml'
   pull_request:
     paths:
-      - 'abi/**'
       - 'engines/**'
-      - 'tool/build.dart'
-      - 'tool/package.dart'
+      - 'tool/**'
+      - 'runtime.json'
 permissions:
   contents: read
 jobs:
@@ -41,5 +39,12 @@ jobs:
       - run: dart run tool/package.dart --engine=${{ matrix.engine }}
       - name: Verify packaged artifact
         run: |
-          test -s "dist/flax-js-runtime-0.1.0-${{ matrix.engine }}-macos-arm64.tar.gz"
-          tar -tzf "dist/flax-js-runtime-0.1.0-${{ matrix.engine }}-macos-arm64.tar.gz" | grep -q './manifest.json'
+          dart run tool/check_sdk.dart ${{ matrix.engine }} build/sdk/${{ matrix.engine }}-macos-arm64
+          VERSION=$(jq -r .runtimeVersion runtime.json)
+          test -s "dist/flax-engine-sdk-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz"
+          tar -tzf "dist/flax-engine-sdk-$VERSION-${{ matrix.engine }}-macos-arm64.tar.gz" | grep -q './manifest.json'
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: sdk-${{ matrix.engine }}
+          path: dist/*.tar.gz
+          retention-days: 7

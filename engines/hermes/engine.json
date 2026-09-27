@@ -2,8 +2,6 @@
   "schemaVersion": 1,
   "id": "hermes",
   "status": "stable",
-  "engineId": 1,
-  "entrySymbol": "flax_hermes_get_api",
   "upstream": {
     "repository": "https://github.com/facebook/hermes",
     "revision": "3477757eb2475555cf8d8df24bfb1deb0613880d",

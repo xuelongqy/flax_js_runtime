@@ -1,49 +1,33 @@
-import 'dart:convert';
 import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
-Future<void> main(List<String> args) async {
-  final engine = args.firstWhere((arg) => arg.startsWith('--engine='), orElse: () => '--engine=hermes').split('=').last;
-  final runtime = jsonDecode(File('runtime.json').readAsStringSync()) as Map<String, dynamic>;
-  final version = runtime['runtimeVersion'] as String;
-  final source = Directory('engines/$engine/native/generated/macos_arm64');
-  if (!source.existsSync()) throw StateError('Build $engine before packaging it');
-  final oldManifest = jsonDecode(File(p.join(source.path, 'manifest.json')).readAsStringSync()) as Map<String, dynamic>;
-  final library = source.listSync().whereType<File>().singleWhere((file) => p.extension(file.path) == '.dylib');
-  final digest = (await sha256.bind(library.openRead()).first).toString();
-  final stage = Directory('dist/$engine-macos-arm64');
-  if (stage.existsSync()) stage.deleteSync(recursive: true);
-  stage.createSync(recursive: true);
-  library.copySync(p.join(stage.path, p.basename(library.path)));
-  final notices = Directory(p.join(source.path, 'notices'));
-  if (notices.existsSync()) await _copyDirectory(notices, Directory(p.join(stage.path, 'notices')));
-  File(p.join(stage.path, 'manifest.json')).writeAsStringSync('${const JsonEncoder.withIndent('  ').convert({
-    'schemaVersion': 1,
-    'runtimeVersion': version,
-    'abiVersion': runtime['abiVersion'],
-    'engine': engine,
-    'os': 'macos',
-    'architecture': 'arm64',
-    'minimumOSVersion': oldManifest['minimumOSVersion'],
-    'entrySymbol': oldManifest['entrySymbol'],
-    'library': p.basename(library.path),
-    'sha256': digest,
-    'capabilities': (jsonDecode(File('engines/$engine/engine.json').readAsStringSync()) as Map<String,dynamic>)['capabilities'],
-    'engineMetadata': oldManifest,
-  })}\n');
-  final output = 'dist/flax-js-runtime-$version-$engine-macos-arm64.tar.gz';
-  final result = await Process.run('tar', ['-czf', output, '-C', stage.path, '.']);
-  if (result.exitCode != 0) throw ProcessException('tar', [], result.stderr.toString(), result.exitCode);
-  stdout.writeln(output);
-}
+import 'src/sdk.dart' as sdk;
 
-Future<void> _copyDirectory(Directory source, Directory target) async {
-  target.createSync(recursive: true);
-  for (final entity in source.listSync()) {
-    final out = p.join(target.path, p.basename(entity.path));
-    if (entity is File) entity.copySync(out);
-    if (entity is Directory) await _copyDirectory(entity, Directory(out));
+Future<void> main(List<String> args) async {
+  final engine = args
+      .where((arg) => arg.startsWith('--engine='))
+      .map((arg) => arg.substring('--engine='.length))
+      .single;
+  if (!const ['hermes', 'v8'].contains(engine)) {
+    throw ArgumentError('Expected --engine=hermes or --engine=v8');
   }
+  final root = Directory.fromUri(Platform.script.resolve('../'));
+  final stage = Directory(
+    p.join(root.path, 'build', 'sdk', '$engine-${sdk.sdkTarget}'),
+  );
+  await sdk.verifySdk(stage);
+  final version = sdk.readJson(
+    p.join(root.path, 'runtime.json'),
+  )['runtimeVersion'];
+  final archive = File(
+    p.join(
+      root.path,
+      'dist',
+      'flax-engine-sdk-$version-$engine-${sdk.sdkTarget}.tar.gz',
+    ),
+  );
+  archive.parent.createSync(recursive: true);
+  await sdk.command('tar', ['-czf', archive.path, '-C', stage.path, '.']);
+  stdout.writeln('${archive.path} sha256=${await sdk.digestFile(archive)}');
 }

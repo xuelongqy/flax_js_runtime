@@ -1,17 +1,19 @@
-# Flax JavaScript Runtime
+# Flax JavaScript Engine SDKs
 
-Builds, verifies, and distributes JavaScript engines for Flax.
+This repository pins and patches upstream Hermes and V8, builds their shared libraries, and publishes relocatable macOS arm64 SDK archives. It does not contain Flax's C ABI or engine adapters. Those live in [Flax](https://github.com/xuelongqy/flax) and are compiled against the SDK by its native asset hooks.
 
-This repository owns engine source pinning, patches, native adapters, conformance testing, and release artifacts. The Flax framework consumes normalized artifacts and does not need to build an engine from source.
+The current SDK version is `runtime.json`'s `runtimeVersion`. Hermes retains the ArrayBuffer transfer patch. V8 is built as shared components with JIT enabled. QuickJS remains experimental and has no SDK.
 
-## Engines
+On macOS arm64:
 
-| Engine | Status | Adapter |
-| --- | --- | --- |
-| Hermes | stable | Flax ABI over JSI |
-| V8 | stable | Flax ABI over v8-jsi |
-| QuickJS | experimental | not implemented |
+```sh
+dart pub get
+dart run tool/verify.dart
+dart run tool/build.dart --engine=hermes
+dart run tool/package.dart --engine=hermes
+dart run tool/check_sdk.dart hermes build/sdk/hermes-macos-arm64
+```
 
-The public compatibility boundary is the versioned Flax C ABI in `abi/`. Engine build systems are intentionally not normalized.
+Use `--engine=v8` for V8 on the pinned Xcode 26.6 host described in `engines/v8/engine.json`. Building an engine never compiles Flax's ABI. An SDK contains all required dynamic libraries, headers, licenses, `manifest.json` with file hashes and build metadata, and a relocatable `FlaxEngineSDKConfig.cmake`. Consumers link `FlaxEngineSDK::hermes` or `FlaxEngineSDK::v8`.
 
-Initial release target: macOS arm64.
+`Engine builds` CI saves candidate archives. The `Publish engine SDK` workflow accepts a successful candidate run ID on a matching `v<runtimeVersion>` tag, rechecks the exact candidate archives and publishes those bytes. The old 0.1.0 ABI-containing archives are not compatible with SDK schema 2.

@@ -1,1 +1,66 @@
-{"$schema":"https://json-schema.org/draft/2020-12/schema","title":"Flax JavaScript Runtime Artifact","type":"object","required":["schemaVersion","runtimeVersion","abiVersion","engine","os","architecture","entrySymbol","library","sha256"],"properties":{"schemaVersion":{"const":1},"runtimeVersion":{"type":"string"},"abiVersion":{"type":"integer","minimum":1},"engine":{"type":"string","minLength":1},"os":{"enum":["macos","linux","windows","android","ios"]},"architecture":{"enum":["arm64","x64"]},"minimumOSVersion":{"type":["string","null"]},"entrySymbol":{"type":"string","minLength":1},"library":{"type":"string","minLength":1},"sha256":{"type":"string","pattern":"^[0-9a-f]{64}$"},"capabilities":{"type":"object","additionalProperties":{"type":"boolean"}},"engineMetadata":{"type":"object"}},"additionalProperties":false}
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Flax Engine SDK Artifact",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "sdkVersion",
+    "engine",
+    "os",
+    "architecture",
+    "minimumOSVersion",
+    "libraries",
+    "cmakeConfig",
+    "cmakeTarget",
+    "metadata",
+    "files"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 2
+    },
+    "sdkVersion": {
+      "type": "string"
+    },
+    "engine": {
+      "enum": [
+        "hermes",
+        "v8"
+      ]
+    },
+    "os": {
+      "const": "macos"
+    },
+    "architecture": {
+      "const": "arm64"
+    },
+    "minimumOSVersion": {
+      "const": "15.0"
+    },
+    "libraries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string"
+      }
+    },
+    "cmakeConfig": {
+      "const": "cmake/FlaxEngineSDKConfig.cmake"
+    },
+    "cmakeTarget": {
+      "type": "string"
+    },
+    "metadata": {
+      "type": "object"
+    },
+    "files": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "string",
+        "pattern": "^[0-9a-f]{64}$"
+      }
+    }
+  },
+  "additionalProperties": false
+}
