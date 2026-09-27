@@ -190,6 +190,7 @@ Future<void> _prepareAssets(
   sdk.writeCmakeConfig(stage, 'hermes', libraries, sdkTarget: target);
   await sdk.finishSdk(root, stage, 'hermes', libraries, {
     'revision': (input['upstream'] as Map<String, Object?>)['revision'],
+    'version': (input['upstream'] as Map<String, Object?>)['version'],
     'patches': (input['upstream'] as Map<String, Object?>)['patches'],
     'jit': false,
     'unicodeLite': target.os == 'linux' || target.os == 'android',

@@ -1,10 +1,10 @@
 {
   "name": "V8",
-  "version": "15.2.124.21",
-  "revision": "4323497a6a73839e6d5260f6acd7ec0212cb3321",
-  "archive": "https://codeload.github.com/v8/v8/tar.gz/4323497a6a73839e6d5260f6acd7ec0212cb3321",
-  "sha256": "8dcedec0d1e8ad795033f338f1a9a57a8d23307c6591d405a7f4702146766ed5",
-  "depotToolsRevision": "da08833a5dfea59cd32248f0ed27a60cfd310e40",
+  "version": "15.4.80.15",
+  "revision": "e959d47215186f24e182a0503a52374c96569722",
+  "archive": "https://codeload.github.com/v8/v8/tar.gz/e959d47215186f24e182a0503a52374c96569722",
+  "sha256": "75e0922973e88c84952b131ded2ea5e03e55ac68eee0078428e20b0da546827e",
+  "depotToolsRevision": "2cc878ef8e3a0ae143d13e4aa04957ca3d6f9a58",
   "patches": [
     {
       "file": "mac-component-headerpad.patch",
@@ -21,7 +21,6 @@
       "directory": "source"
     }
   ],
-  "gnArgs": "is_debug = false\ntarget_cpu = \"arm64\"\nv8_target_cpu = \"arm64\"\nv8_monolithic = false\nv8_monolithic_for_shared_library = false\nis_component_build = true\nv8_use_external_startup_data = false\nv8_enable_i18n_support = false\nuse_custom_libcxx = false\nv8_enable_sandbox = false\nv8_enable_pointer_compression = false\nsymbol_level = 0\ntreat_warnings_as_errors = false\nmac_deployment_target = \"15.0\"\nuse_remoteexec = false\n",
   "hostTools": {
     "cmake": "4.4.3",
     "ninja": "1.13.2",

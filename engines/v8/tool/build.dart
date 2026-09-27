@@ -8,10 +8,28 @@ import '../../../tool/src/target.dart';
 
 Future<void> _checkout(String path, String url, String revision) async {
   final git = Directory(p.join(path, '.git'));
-  if (!git.existsSync()) {
+  final fresh = !git.existsSync();
+  if (fresh) {
     Directory(path).createSync(recursive: true);
     await sdk.command('git', ['init', path]);
     await sdk.command('git', ['remote', 'add', 'origin', url], directory: path);
+  }
+  final actual = fresh
+      ? null
+      : await sdk.command(
+          'git',
+          ['rev-parse', 'HEAD'],
+          directory: path,
+          capture: true,
+        );
+  if (actual != revision) {
+    if (!fresh) {
+      await sdk.command('git', [
+        'diff',
+        'HEAD',
+        '--exit-code',
+      ], directory: path);
+    }
     await sdk.command('git', [
       'fetch',
       '--depth',
@@ -25,14 +43,6 @@ Future<void> _checkout(String path, String url, String revision) async {
       revision,
     ], directory: path);
   }
-  final actual = await sdk.command(
-    'git',
-    ['rev-parse', 'HEAD'],
-    directory: path,
-    capture: true,
-  );
-  if (actual != revision)
-    throw StateError('Cached V8 revision is $actual, expected $revision');
   await sdk.command('git', ['diff', 'HEAD', '--exit-code'], directory: path);
 }
 

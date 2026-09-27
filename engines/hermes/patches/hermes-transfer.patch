@@ -1,13 +1,13 @@
 --- a/include/hermes/VM/PredefinedStrings.def
 +++ b/include/hermes/VM/PredefinedStrings.def
-@@ -210,6 +210,7 @@
+@@ -211,6 +211,7 @@
  
  STR(ArrayBuffer, "ArrayBuffer")
  STR(byteLength, "byteLength")
 +STR(transfer, "transfer")
+ STR(detached, "detached")
  STR(isView, "isView")
  STR(buffer, "buffer")
- STR(byteOffset, "byteOffset")
 --- a/include/hermes/VM/NativeFunctions.def
 +++ b/include/hermes/VM/NativeFunctions.def
 @@ -6,7 +6,7 @@
@@ -19,9 +19,9 @@
  
  #ifndef NATIVE_FUNCTION
  #define NATIVE_FUNCTION(func)
-@@ -17,6 +17,7 @@
- 
+@@ -18,6 +18,7 @@
  NATIVE_FUNCTION(arrayBufferPrototypeByteLength)
+ NATIVE_FUNCTION(arrayBufferPrototypeDetached)
  NATIVE_FUNCTION(arrayBufferPrototypeSlice)
 +NATIVE_FUNCTION(arrayBufferPrototypeTransfer)
  
@@ -29,11 +29,10 @@
  NATIVE_FUNCTION(arrayIsArray)
 --- a/lib/VM/JSLib/ArrayBuffer.cpp
 +++ b/lib/VM/JSLib/ArrayBuffer.cpp
-@@ -60,6 +60,14 @@
+@@ -69,6 +69,13 @@
        nullptr,
        arrayBufferPrototypeSlice,
        2);
-+
 +  defineMethod(
 +      runtime,
 +      arrayBufferPrototype,
@@ -44,19 +43,11 @@
  
    auto dpf = DefinePropertyFlags::getDefaultNewPropertyFlags();
    dpf.writable = 0;
-@@ -157,7 +165,7 @@
-     return runtime.raiseTypeError(
-         "byteLength called on a non ArrayBuffer object");
-   }
--  return HermesValue::encodeTrustedNumberValue(self->size());
-+  return HermesValue::encodeTrustedNumberValue(self->attached() ? self->size() : 0);
- }
- 
- CallResult<HermesValue> arrayBufferPrototypeSlice(void *, Runtime &runtime) {
-@@ -250,6 +258,40 @@
+@@ -269,6 +276,46 @@
    // 26. Return new.
    return lv.newBuf.getHermesValue();
  }
++
 +// ArrayBufferCopyAndDetach for fixed-length, unshared ArrayBuffers.
 +CallResult<HermesValue> arrayBufferPrototypeTransfer(void *, Runtime &runtime) {
 +  NativeArgs args = runtime.getCurrentFrame().getNativeArgs();
@@ -67,11 +58,15 @@
 +  uint64_t length = self->size();
 +  if (!args.getArg(0).isUndefined()) {
 +    auto result = toIndex(runtime, args.getArgHandle(0));
-+    if (result == ExecutionStatus::EXCEPTION) return ExecutionStatus::EXCEPTION;
++    if (result == ExecutionStatus::EXCEPTION) {
++      return ExecutionStatus::EXCEPTION;
++    }
 +    length = result->getNumberAs<uint64_t>();
 +  }
 +  // Conversion can execute user code and detach the source.
-+  if (!self->attached()) return runtime.raiseTypeError("Detached ArrayBuffer");
++  if (!self->attached()) {
++    return runtime.raiseTypeError("Detached ArrayBuffer");
++  }
 +  if (length > std::numeric_limits<JSArrayBuffer::size_type>::max()) {
 +    return runtime.raiseRangeError("Too large of a byteLength requested");
 +  }
@@ -80,69 +75,18 @@
 +  } lv;
 +  LocalsRAII lraii(runtime, &lv);
 +  lv.target.castAndSetHermesValue<JSArrayBuffer>(
-+      JSArrayBuffer::create(runtime,
-+          Handle<JSObject>::vmcast(&runtime.arrayBufferPrototype)).getHermesValue());
++      JSArrayBuffer::create(
++          runtime, Handle<JSObject>::vmcast(&runtime.arrayBufferPrototype))
++          .getHermesValue());
 +  if (JSArrayBuffer::createDataBlock(runtime, lv.target, length) ==
-+      ExecutionStatus::EXCEPTION) return ExecutionStatus::EXCEPTION;
++      ExecutionStatus::EXCEPTION) {
++    return ExecutionStatus::EXCEPTION;
++  }
 +  JSArrayBuffer::copyDataBlockBytes(
 +      runtime, *lv.target, 0, *self, 0, std::min<uint64_t>(length, self->size()));
-+  if (JSArrayBuffer::detach(runtime, self) == ExecutionStatus::EXCEPTION)
-+    return ExecutionStatus::EXCEPTION;
++  JSArrayBuffer::detach(runtime, self);
 +  return lv.target.getHermesValue();
 +}
-+
  /// @}
  } // namespace vm
  } // namespace hermes
---- a/lib/VM/JSLib/DataView.cpp
-+++ b/lib/VM/JSLib/DataView.cpp
-@@ -37,6 +37,7 @@
-     return runtime.raiseTypeError(
-         "DataView.prototype.byteLength called on a non DataView object");
-   }
-+  if (!self->attached(runtime)) return runtime.raiseTypeError("Detached DataView");
-   return HermesValue::encodeTrustedNumberValue(self->byteLength());
- }
- 
-@@ -48,6 +49,7 @@
-     return runtime.raiseTypeError(
-         "DataView.prototype.byteOffset called on a non DataView object");
-   }
-+  if (!self->attached(runtime)) return runtime.raiseTypeError("Detached DataView");
-   return HermesValue::encodeTrustedNumberValue(self->byteOffset());
- }
- 
-@@ -201,6 +203,7 @@
-   }
-   auto offset = res->getNumberAs<uint64_t>();
-   // 6. Let bufferByteLength be buffer.[[ArrayBufferByteLength]].
-+  if (!buffer->attached()) return runtime.raiseTypeError("Detached ArrayBuffer");
-   auto bufferByteLength = buffer->size();
-   // 7. If offset > bufferByteLength, throw a RangeError exception.
-   if (offset > bufferByteLength) {
-@@ -230,6 +233,7 @@
-           "<= the length of the buffer");
-     }
-   }
-+  if (!buffer->attached()) return runtime.raiseTypeError("Detached ArrayBuffer");
-   lv.self->setBuffer(runtime, *buffer, offset, viewByteLength);
-   return lv.self.getHermesValue();
- }
---- a/lib/VM/JSLib/TypedArray.cpp
-+++ b/lib/VM/JSLib/TypedArray.cpp
-@@ -136,6 +136,7 @@
-         "[length]): if byteOffset is specified, it "
-         "must be evenly divisible by the element size");
-   }
-+  if (!buffer->attached()) return runtime.raiseTypeError("Detached ArrayBuffer");
-   auto bufferByteLength = buffer->size();
-   uint64_t newByteLength = 0;
-   if (length->isUndefined()) {
-@@ -165,6 +166,7 @@
-           "length * elementSize must be less than buffer.byteLength");
-     }
-   }
-+  if (!buffer->attached()) return runtime.raiseTypeError("Detached ArrayBuffer");
-   JSTypedArrayBase::setBuffer(
-       runtime, *self, *buffer, offset, newByteLength, sizeof(T));
-   return self.getHermesValue();
