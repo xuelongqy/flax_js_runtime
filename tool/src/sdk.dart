@@ -406,6 +406,7 @@ endif()''');
     '    INTERFACE_INCLUDE_DIRECTORIES ${cmakeQuote(includeDirectories)}\n'
     '    INTERFACE_COMPILE_FEATURES "cxx_std_$cxxStandard"\n'
     '    INTERFACE_COMPILE_DEFINITIONS ${cmakeQuote(defines.join(';'))}\n'
+    '${engine == 'v8' && sdkTarget.os == 'windows' ? '    INTERFACE_COMPILE_OPTIONS "/Zc:__cplusplus"\n' : ''}'
     '${bundledLibcxx ? '    INTERFACE_COMPILE_OPTIONS "-nostdinc++"\n    INTERFACE_LINK_OPTIONS "-nostdlib++"\n' : ''}'
     '    INTERFACE_LINK_LIBRARIES ${cmakeQuote(targets.join(';'))})\nendif()',
   );
