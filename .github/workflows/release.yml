@@ -8,8 +8,11 @@ on:
       platform_validation_completed:
         description: Confirm all 24 candidates passed target execution and Flax validation
         type: boolean
-        required: true
         default: false
+      prerelease:
+        description: Publish build-only candidates as a v<version>-rc.N prerelease
+        type: boolean
+        default: true
 permissions:
   contents: write
   actions: read
@@ -31,8 +34,13 @@ jobs:
           CANDIDATE_RUN: ${{ inputs.candidate_run_id }}
         run: |
           test "${{ github.ref_type }}" = tag
-          test "${{ github.ref_name }}" = "v$(jq -r .runtimeVersion runtime.json)"
-          test "${{ inputs.platform_validation_completed }}" = true
+          VERSION=$(jq -r .runtimeVersion runtime.json)
+          if test "${{ inputs.prerelease }}" = true; then
+            [[ "$GITHUB_REF_NAME" =~ ^v${VERSION//./\\.}-rc\.[1-9][0-9]*$ ]]
+          else
+            test "$GITHUB_REF_NAME" = "v$VERSION"
+            test "${{ inputs.platform_validation_completed }}" = true
+          fi
           test "$(gh run view "$CANDIDATE_RUN" --json name --jq .name)" = 'Engine SDK candidates'
           test "$(gh run view "$CANDIDATE_RUN" --json headSha --jq .headSha)" = "$GITHUB_SHA"
           test "$(gh run view "$CANDIDATE_RUN" --json conclusion --jq .conclusion)" = success
@@ -71,4 +79,7 @@ jobs:
       - name: Publish verified bytes
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS.txt --verify-tag --title "$GITHUB_REF_NAME"
+        run: |
+          FLAGS=(--verify-tag --title "$GITHUB_REF_NAME")
+          if test "${{ inputs.prerelease }}" = true; then FLAGS+=(--prerelease); fi
+          gh release create "$GITHUB_REF_NAME" dist/*.tar.gz dist/SHA256SUMS.txt "${FLAGS[@]}"
