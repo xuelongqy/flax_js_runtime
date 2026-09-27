@@ -14,11 +14,6 @@
       "file": "monolith-libplatform.patch",
       "sha256": "871b839943fc12faaf1f12da37762963262570567961eb5a36ab2780790c1e2e",
       "directory": "source"
-    },
-    {
-      "file": "windows-extended-map-layout.patch",
-      "sha256": "130e0b6ed4c3a204622495792efa10de1a8c1def4214b78d9f6b9e6304ab38d5",
-      "directory": "source"
     }
   ],
   "gnArgs": "is_debug = false\ntarget_cpu = \"arm64\"\nv8_target_cpu = \"arm64\"\nv8_monolithic = false\nv8_monolithic_for_shared_library = false\nis_component_build = true\nv8_use_external_startup_data = false\nv8_enable_i18n_support = false\nuse_custom_libcxx = false\nv8_enable_sandbox = false\nv8_enable_pointer_compression = false\nsymbol_level = 0\ntreat_warnings_as_errors = false\nmac_deployment_target = \"15.0\"\nuse_remoteexec = false\n",
