@@ -2,7 +2,7 @@
 
 This repository pins and patches upstream Hermes and V8, builds shared libraries, and packages relocatable engine SDK archives. It does not contain Flax's C ABI or engine adapters. Those live in [Flax](https://github.com/xuelongqy/flax) and are compiled against the SDK by its native asset hooks.
 
-The candidate SDK version is `runtime.json`'s `runtimeVersion` (`0.3.0`). Published `0.2.0` archives remain unchanged. Hermes retains the ArrayBuffer transfer patch. V8 uses shared components on desktop and Android; its iOS candidate links a jitless monolith into one dylib. QuickJS remains experimental and has no SDK.
+The candidate SDK version is `runtime.json`'s `runtimeVersion` (`0.3.0`). Published `0.2.0` archives remain unchanged. Hermes retains the ArrayBuffer transfer patch. V8 uses shared components on desktop; Android and iOS link monolith archives into shared libraries. iOS is jitless. QuickJS remains experimental and has no SDK.
 
 On a matching build host, select one of the targets listed in `tool/src/target.dart`:
 

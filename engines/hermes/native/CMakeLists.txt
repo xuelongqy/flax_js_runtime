@@ -37,6 +37,7 @@ if(WIN32)
 endif()
 add_subdirectory("${FLAX_HERMES_SOURCE}" "${CMAKE_BINARY_DIR}/hermes" EXCLUDE_FROM_ALL)
 if(WIN32)
+  target_compile_definitions(jsi PRIVATE CREATE_SHARED_LIBRARY)
   target_link_libraries(hermesvm PRIVATE winmm)
 endif()
 

@@ -41,11 +41,9 @@ Future<void> main(List<String> args) async {
   final package = Directory.fromUri(Platform.script.resolve('../'));
   final root = Directory.fromUri(Platform.script.resolve('../../../'));
   final input = sdk.readJson(p.join(package.path, 'engine.json'));
-  final ninja = (await sdk.command(
-    Platform.isWindows ? 'where.exe' : 'which',
-    ['ninja'],
-    capture: true,
-  )).split('\n').first.trim();
+  final ninja = (await sdk.command(Platform.isWindows ? 'where.exe' : 'which', [
+    'ninja',
+  ], capture: true)).split('\n').first.trim();
   final expectedTools = Map<String, Object?>.from(input['hostTools'] as Map);
   final actualTools = <String, String>{
     'cmake': (await sdk.command('cmake', [
@@ -157,6 +155,7 @@ Future<void> main(List<String> args) async {
     Platform.isWindows ? 'gn.exe' : 'gn',
   );
   final outName = 'out/flax-sdk-${target.id}';
+  final monolith = target.os == 'ios' || target.os == 'android';
   await sdk.command(
     gn,
     ['gen', outName, '--args=$gnArgs'],
@@ -170,8 +169,8 @@ Future<void> main(List<String> args) async {
       outName,
       '-j',
       '${sdk.buildJobs()}',
-      target.os == 'ios' ? 'v8_monolith' : 'v8',
-      if (target.os != 'ios') 'v8_libplatform',
+      monolith ? 'v8_monolith' : 'v8',
+      if (!monolith) 'v8_libplatform',
     ],
     directory: source,
     environment: env,
@@ -190,6 +189,8 @@ Future<void> main(List<String> args) async {
   final out = Directory(p.join(source, outName));
   if (target.os == 'ios') {
     await _linkIosMonolith(out, target);
+  } else if (target.os == 'android') {
+    await _linkAndroidMonolith(out, target);
   }
   final libraries =
       out
@@ -203,13 +204,11 @@ Future<void> main(List<String> args) async {
             p.basename(f.path) ==
             (target.os == 'windows' ? 'v8.dll' : 'libv8${target.extension}'),
       ) ||
-      target.os != 'ios' &&
+      !monolith &&
           !libraries.any(
             (f) => p.basename(f.path).contains('v8_libplatform'),
           )) {
-    throw StateError(
-      'V8 component build did not produce both required shared libraries',
-    );
+    throw StateError('V8 build did not produce required shared libraries');
   }
   final stage = sdk.newStage(root, 'v8', target);
   final staged = await sdk.stageLibraries(stage, libraries, target);
@@ -244,18 +243,19 @@ String _gnArgs(SdkTarget target) {
   };
   final cpu = target.architecture == 'arm32' ? 'arm' : target.architecture;
   final ios = target.os == 'ios';
+  final monolith = ios || target.os == 'android';
   return '''is_debug = false
 target_os = "$os"
 target_cpu = "$cpu"
 v8_target_cpu = "$cpu"
-is_component_build = ${!ios}
-v8_monolithic = $ios
-v8_monolithic_for_shared_library = $ios
+is_component_build = ${!monolith}
+v8_monolithic = $monolith
+v8_monolithic_for_shared_library = $monolith
 v8_jitless = $ios
 ${ios ? 'v8_enable_turbofan = false\nv8_enable_webassembly = false' : ''}
 v8_use_external_startup_data = false
 v8_enable_i18n_support = false
-use_custom_libcxx = false
+use_custom_libcxx = ${target.os == 'linux'}
 v8_enable_sandbox = false
 v8_enable_pointer_compression = false
 symbol_level = 0
@@ -291,5 +291,26 @@ Future<void> _linkIosMonolith(Directory out, SdkTarget target) async {
     '-Wl,-install_name,@rpath/libv8.dylib',
     '-o',
     result,
+  ]);
+}
+
+Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
+  final archive = File(p.join(out.path, 'libv8_monolith.a'));
+  if (!archive.existsSync()) throw StateError('Missing Android V8 monolith');
+  final compiler = switch (target.architecture) {
+    'arm32' => 'armv7a-linux-androideabi24-clang++',
+    'arm64' => 'aarch64-linux-android24-clang++',
+    'x64' => 'x86_64-linux-android24-clang++',
+    _ => throw StateError('Unsupported Android architecture'),
+  };
+  await sdk.command(p.join(sdk.androidLlvmPrebuilt().path, 'bin', compiler), [
+    '-shared',
+    '-Wl,--whole-archive',
+    archive.path,
+    '-Wl,--no-whole-archive',
+    '-Wl,--no-undefined',
+    '-Wl,-soname,libv8.so',
+    '-o',
+    p.join(out.path, 'libv8.so'),
   ]);
 }

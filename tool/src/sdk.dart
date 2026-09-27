@@ -78,6 +78,17 @@ Directory sourceCache(Directory engine) => Directory(
       p.join(engine.path, '.cache', 'native'),
 )..createSync(recursive: true);
 
+Directory androidLlvmPrebuilt() {
+  final ndk = Platform.environment['ANDROID_NDK_HOME'];
+  if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
+  final hosts = Directory(p.join(ndk, 'toolchains', 'llvm', 'prebuilt'))
+      .listSync()
+      .whereType<Directory>()
+      .toList();
+  if (hosts.length != 1) throw StateError('Expected one Android NDK host');
+  return hosts.single;
+}
+
 void copyTree(
   Directory source,
   Directory destination, {
@@ -139,13 +150,6 @@ Future<List<String>> stageLibraries(
 ) async {
   final files = [...inputs];
   if (target.os == 'android') {
-    final ndk = Platform.environment['ANDROID_NDK_HOME'];
-    if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
-    final hosts = Directory(p.join(ndk, 'toolchains', 'llvm', 'prebuilt'))
-        .listSync()
-        .whereType<Directory>()
-        .toList();
-    if (hosts.length != 1) throw StateError('Expected one Android NDK host');
     final triple = switch (target.architecture) {
       'arm32' => 'arm-linux-androideabi',
       'arm64' => 'aarch64-linux-android',
@@ -155,7 +159,7 @@ Future<List<String>> stageLibraries(
     files.add(
       File(
         p.join(
-          hosts.single.path,
+          androidLlvmPrebuilt().path,
           'sysroot',
           'usr',
           'lib',
