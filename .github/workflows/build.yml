@@ -220,7 +220,7 @@ jobs:
 
   linux-arm64-consumer:
     needs: linux
-    if: needs.linux.result == 'success'
+    if: needs.linux.result == 'success' && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, 'linux-arm64'))
     runs-on: ubuntu-24.04-arm
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
