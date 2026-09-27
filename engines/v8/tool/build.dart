@@ -339,7 +339,7 @@ v8_enable_i18n_support = false
 use_custom_libcxx = ${target.os == 'linux'}
 ${target.os == 'windows' ? 'use_custom_libcxx_for_host = false' : ''}
 v8_enable_sandbox = false
-v8_enable_pointer_compression = ${target.os == 'windows' && target.architecture == 'arm64'}
+v8_enable_pointer_compression = ${target.os == 'windows'}
 symbol_level = 0
 treat_warnings_as_errors = false
 use_remoteexec = false
