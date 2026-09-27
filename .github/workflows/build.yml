@@ -73,9 +73,13 @@ jobs:
       - run: dart pub get
       - name: Build and check target SDKs
         if: runner.os != 'Windows' && (!inputs.skip_macos || !startsWith(matrix.group, 'mac-')) && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.group))
+        env:
+          FLAX_BUILD_JOBS: ${{ matrix.group == 'mac-arm64' && '2' || '4' }}
         run: dart run tool/ci_build.dart --targets=${{ matrix.targets }}
       - name: Build and check Windows SDKs
         if: runner.os == 'Windows' && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.group))
+        env:
+          FLAX_BUILD_JOBS: '4'
         shell: pwsh
         run: |
           $vs = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationPath
@@ -215,6 +219,8 @@ jobs:
       - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         run: dart pub get
       - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
+        env:
+          FLAX_BUILD_JOBS: '4'
         run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always() && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target))
