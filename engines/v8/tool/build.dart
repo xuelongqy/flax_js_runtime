@@ -106,6 +106,25 @@ Future<void> main(List<String> args) async {
     'PATH':
         '$depot${Platform.isWindows ? ';' : ':'}${Platform.environment['PATH'] ?? ''}',
   };
+  final patches = (input['patches'] as List<Object?>)
+      .cast<Map<String, Object?>>();
+  for (final patch in patches) {
+    final file = File(p.join(package.path, 'patches', patch['file'] as String));
+    await sdk.requireDigest(file, patch['sha256'] as String);
+    final applied = await Process.run('git', [
+      'apply',
+      '--reverse',
+      '--check',
+      file.path,
+    ], workingDirectory: p.join(source, 'build'));
+    if (applied.exitCode == 0) {
+      await sdk.command('git', [
+        'apply',
+        '--reverse',
+        file.path,
+      ], directory: p.join(source, 'build'));
+    }
+  }
   await sdk.command(
     p.join(depot, Platform.isWindows ? 'gclient.bat' : 'gclient'),
     ['sync', '--no-history', '--revision', 'v8@${input['revision']}'],
@@ -117,11 +136,8 @@ Future<void> main(List<String> args) async {
     'https://chromium.googlesource.com/v8/v8.git',
     input['revision'] as String,
   );
-  final patches = (input['patches'] as List<Object?>)
-      .cast<Map<String, Object?>>();
   for (final patch in patches) {
     final file = File(p.join(package.path, 'patches', patch['file'] as String));
-    await sdk.requireDigest(file, patch['sha256'] as String);
     final alreadyApplied = await Process.run('git', [
       'apply',
       '--reverse',
