@@ -1,0 +1,13 @@
+diff --git a/config/mac/BUILD.gn b/config/mac/BUILD.gn
+--- a/config/mac/BUILD.gn
++++ b/config/mac/BUILD.gn
+@@ -68,5 +68,8 @@ config("runtime_library") {
+ # On Mac, this is used for everything except static libraries.
+ config("mac_dynamic_flags") {
+-  ldflags = [ "-Wl,-ObjC" ]  # Always load Objective-C categories and classes.
++  ldflags = [
++    "-Wl,-ObjC",  # Always load Objective-C categories and classes.
++    "-Wl,-headerpad_max_install_names",  # Native assets rewrite dylib paths.
++  ]
+ 
+   if (is_component_build) {

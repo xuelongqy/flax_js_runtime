@@ -5,6 +5,12 @@
   "archive": "https://codeload.github.com/v8/v8/tar.gz/4323497a6a73839e6d5260f6acd7ec0212cb3321",
   "sha256": "8dcedec0d1e8ad795033f338f1a9a57a8d23307c6591d405a7f4702146766ed5",
   "depotToolsRevision": "da08833a5dfea59cd32248f0ed27a60cfd310e40",
+  "patches": [
+    {
+      "file": "mac-component-headerpad.patch",
+      "sha256": "0ecce99b9bead022a3a59d90c903b6ab39d872e7a9937a8ee4aac3d2236b7596"
+    }
+  ],
   "gnArgs": "is_debug = false\ntarget_cpu = \"arm64\"\nv8_target_cpu = \"arm64\"\nv8_monolithic = false\nv8_monolithic_for_shared_library = false\nis_component_build = true\nv8_use_external_startup_data = false\nv8_enable_i18n_support = false\nuse_custom_libcxx = false\nv8_enable_sandbox = false\nv8_enable_pointer_compression = false\nsymbol_level = 0\ntreat_warnings_as_errors = false\nmac_deployment_target = \"15.0\"\nuse_remoteexec = false\n",
   "hostTools": {
     "cmake": "4.4.3",

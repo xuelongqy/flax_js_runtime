@@ -110,6 +110,28 @@ Future<void> main() async {
     'https://chromium.googlesource.com/v8/v8.git',
     input['revision'] as String,
   );
+  final patches = (input['patches'] as List<Object?>)
+      .cast<Map<String, Object?>>();
+  for (final patch in patches) {
+    final file = File(p.join(package.path, 'patches', patch['file'] as String));
+    await sdk.requireDigest(file, patch['sha256'] as String);
+    final alreadyApplied = await Process.run('git', [
+      'apply',
+      '--reverse',
+      '--check',
+      file.path,
+    ], workingDirectory: p.join(source, 'build'));
+    if (alreadyApplied.exitCode == 0) continue;
+    await sdk.command('git', [
+      'apply',
+      '--check',
+      file.path,
+    ], directory: p.join(source, 'build'));
+    await sdk.command('git', [
+      'apply',
+      file.path,
+    ], directory: p.join(source, 'build'));
+  }
   var args = (input['gnArgs'] as String)
       .replaceFirst('v8_monolithic = true', 'v8_monolithic = false')
       .replaceFirst(
@@ -178,6 +200,7 @@ Future<void> main() async {
     'version': input['version'],
     'gnArgs': args,
     'hostTools': actualTools,
+    'patches': patches,
     'jit': true,
   });
 }
