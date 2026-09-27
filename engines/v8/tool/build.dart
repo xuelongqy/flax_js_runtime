@@ -45,7 +45,7 @@ Future<void> main(List<String> args) async {
     Platform.isWindows ? 'where.exe' : 'which',
     ['ninja'],
     capture: true,
-  )).split('\n').first;
+  )).split('\n').first.trim();
   final expectedTools = Map<String, Object?>.from(input['hostTools'] as Map);
   final actualTools = <String, String>{
     'cmake': (await sdk.command('cmake', [

@@ -192,6 +192,7 @@ Future<void> _prepareAssets(
     'revision': (input['upstream'] as Map<String, Object?>)['revision'],
     'patches': (input['upstream'] as Map<String, Object?>)['patches'],
     'jit': false,
+    'unicodeLite': target.os == 'linux' || target.os == 'android',
   }, target);
 }
 

@@ -11,3 +11,17 @@
 +  target_link_options(hermesvmlean PRIVATE "/WHOLEARCHIVE:$<TARGET_FILE:hermesvmlean_a>")
  else()
    target_link_libraries(hermesvm PRIVATE
+--- a/include/hermes/VM/static_h.h
++++ b/include/hermes/VM/static_h.h
+@@ -1001,9 +1001,9 @@
+   if (HERMES_TRYFAST_F64_TO_64_IS_FAST) {
+     int64_t fast;
+-    if (__builtin_expect(sh_tryfast_f64_to_i64(d, fast), 1))
++    if (SH_LIKELY(sh_tryfast_f64_to_i64(d, fast)))
+       return (int32_t)fast;
+   } else {
+     int32_t fast;
+-    if (__builtin_expect(sh_tryfast_f64_to_i32(d, fast), 1))
++    if (SH_LIKELY(sh_tryfast_f64_to_i32(d, fast)))
+       return fast;
+   }

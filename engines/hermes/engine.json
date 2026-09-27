@@ -15,11 +15,11 @@
       },
       {
         "file": "hermes-windows-shared.patch",
-        "sha256": "20a131109992476b022be7259dc4674817e3a89315ebd7f742a55dea6600fbd0"
+        "sha256": "f19c61621321169cebdf0932df61dde468f150dad3163daf8c0b3b3ae290ab36"
       },
       {
         "file": "hermes-android-unicode-lite.patch",
-        "sha256": "80cc170eaf1ba66d5f8cfcefa90ff60c972c36cff44c674fda934612534161b4"
+        "sha256": "7cabccd000d50cc3f479ed137f1e82c37a7b183cfa79c18229308edabe0bbc83"
       }
     ]
   },

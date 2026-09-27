@@ -5,3 +5,11 @@
 +if(HERMES_IS_ANDROID AND (NOT HERMES_UNICODE_LITE OR HERMES_ENABLE_INTL))
    find_package(fbjni REQUIRED CONFIG)
  endif()
+--- a/android/intltest/java/com/facebook/hermes/test/CMakeLists.txt
++++ b/android/intltest/java/com/facebook/hermes/test/CMakeLists.txt
+@@ -21,4 +21,4 @@
+ # fbjni is currently only configured for Android, so make this rule
+ # conditional to avoid unnecessarily breaking host build targets.
+-if(HERMES_IS_ANDROID)
++if(HERMES_IS_ANDROID AND NOT HERMES_UNICODE_LITE)
+   add_hermes_library(jsijni SHARED
