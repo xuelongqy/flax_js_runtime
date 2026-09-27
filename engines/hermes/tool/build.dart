@@ -160,22 +160,20 @@ Future<void> _prepareAssets(
   SdkTarget target,
 ) async {
   final stage = sdk.newStage(root, 'hermes', target);
-  final matches = Directory(build)
-      .listSync(recursive: true)
-      .whereType<File>()
-      .where(
-        (file) =>
-            p.basename(file.path) ==
-            (target.os == 'windows'
-                ? 'hermesvm.dll'
-                : 'libhermesvm${target.extension}'),
-      )
-      .toList();
-  if (matches.length != 1)
-    throw StateError(
-      'Expected one Hermes shared library, found ${matches.length}',
-    );
-  final libraries = await sdk.stageLibraries(stage, [matches.single], target);
+  final library = File(
+    p.join(
+      build,
+      'hermes',
+      'lib',
+      target.os == 'windows'
+          ? 'hermesvm.dll'
+          : 'libhermesvm${target.extension}',
+    ),
+  );
+  if (!library.existsSync()) {
+    throw StateError('Hermes shared library is missing: ${library.path}');
+  }
+  final libraries = await sdk.stageLibraries(stage, [library], target);
   sdk.copyHeaders(
     Directory(p.join(upstreamSource.path, 'public')),
     Directory(p.join(stage.path, 'include')),

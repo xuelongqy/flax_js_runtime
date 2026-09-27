@@ -100,6 +100,13 @@ Future<void> main(List<String> args) async {
     'PATH':
         '$depot${Platform.isWindows ? ';' : ':'}${Platform.environment['PATH'] ?? ''}',
   };
+  if (Platform.isWindows) {
+    await sdk.command(
+      p.join(depot, 'bootstrap', 'win_tools.bat'),
+      [],
+      environment: env,
+    );
+  }
   final patches = (input['patches'] as List<Object?>)
       .cast<Map<String, Object?>>();
   final buildSource = Directory(p.join(source, 'build'));
