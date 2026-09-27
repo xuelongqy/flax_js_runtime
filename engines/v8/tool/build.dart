@@ -344,7 +344,7 @@ symbol_level = 0
 treat_warnings_as_errors = false
 use_remoteexec = false
 ${target.os == 'macos' ? 'mac_deployment_target = "${target.minimumVersion}"' : ''}
-${ios ? 'target_environment = "${target.appleSdk == 'iphoneos' ? 'device' : 'simulator'}"\nios_deployment_target = "${target.minimumVersion}"' : ''}
+${ios ? 'target_environment = "${target.appleSdk == 'iphoneos' ? 'device' : 'simulator'}"\nios_deployment_target = "${target.minimumVersion}"\nios_enable_code_signing = false' : ''}
 ''';
 }
 
