@@ -36,7 +36,7 @@ Future<void> main(List<String> args) async {
         'tool/check_sdk.dart',
         engine,
         'build/sdk/$engine-$id',
-        if (target.isMobile) '--compile-only',
+        if (target.isMobile || target.isLinuxArm64Cross) '--compile-only',
       ]);
       final version = sdk.readJson('runtime.json')['runtimeVersion'];
       final archive = File('dist/flax-engine-sdk-$version-$engine-$id.tar.gz');
@@ -46,7 +46,7 @@ Future<void> main(List<String> args) async {
       checksums.writeln('$digest  ${p.basename(archive.path)}');
       stdout.writeln(
         'CANDIDATE $engine/$id sha256=$digest '
-        '${target.isMobile ? 'compile-only' : 'executed'}',
+        '${target.isMobile || target.isLinuxArm64Cross ? 'compile-only' : 'executed'}',
       );
       Directory(p.join('build', 'sdk', '$engine-$id'))
           .deleteSync(recursive: true);

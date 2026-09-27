@@ -20,6 +20,11 @@ final class SdkTarget {
 
   bool get isApple => os == 'macos' || os == 'ios';
   bool get isMobile => os == 'ios' || os == 'android';
+  bool get isLinuxArm64Cross =>
+      os == 'linux' &&
+      architecture == 'arm64' &&
+      Platform.isLinux &&
+      Abi.current().toString().toLowerCase().contains('x64');
   String get extension => isApple
       ? '.dylib'
       : os == 'windows'
@@ -51,7 +56,7 @@ final class SdkTarget {
       'linux' || 'windows' =>
         host == os &&
             (architecture == 'arm64'
-                ? abi.contains('arm64')
+                ? abi.contains('arm64') || isLinuxArm64Cross
                 : abi.contains('x64')),
       _ => false,
     };

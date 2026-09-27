@@ -76,6 +76,12 @@ Future<void> main(List<String> args) async {
     'https://chromium.googlesource.com/v8/v8.git',
     input['revision'] as String,
   );
+  if (target.isLinuxArm64Cross) {
+    await sdk.command('python3', [
+      'build/linux/sysroot_scripts/install-sysroot.py',
+      '--arch=arm64',
+    ], directory: source);
+  }
   await _checkout(
     depot,
     'https://chromium.googlesource.com/chromium/tools/depot_tools.git',

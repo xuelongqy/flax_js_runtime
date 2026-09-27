@@ -70,6 +70,13 @@ set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
         '-DANDROID_PLATFORM=android-24',
       ]);
     }
+    if (target.isLinuxArm64Cross) {
+      flags.addAll([
+        '-DCMAKE_SYSTEM_NAME=Linux',
+        '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+        '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
+      ]);
+    }
     await command('cmake', [
       '-S',
       temp.path,

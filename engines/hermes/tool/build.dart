@@ -84,7 +84,15 @@ Future<void> main(List<String> args) async {
       '-DHERMES_IS_ANDROID=ON',
     ]);
   }
-  if (target.isMobile) {
+  if (target.isLinuxArm64Cross) {
+    flags.addAll([
+      '-DCMAKE_SYSTEM_NAME=Linux',
+      '-DCMAKE_SYSTEM_PROCESSOR=aarch64',
+      '-DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc',
+      '-DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++',
+    ]);
+  }
+  if (target.isMobile || target.isLinuxArm64Cross) {
     final hostBuild = p.join(package.path, 'build', 'host-hermesc');
     final import = File(p.join(hostBuild, 'ImportHostCompilers.cmake'));
     if (!import.existsSync()) {
@@ -130,11 +138,13 @@ Future<void> main(List<String> args) async {
     '--build',
     build,
     '--target',
-    target.isMobile ? 'hermesvm' : 'flax_hermes_sdk_test',
+    target.isMobile || target.isLinuxArm64Cross
+        ? 'hermesvm'
+        : 'flax_hermes_sdk_test',
     '--parallel',
     '$jobs',
   ]);
-  if (!target.isMobile) {
+  if (!target.isMobile && !target.isLinuxArm64Cross) {
     await _run('ctest', ['--test-dir', build, '--output-on-failure']);
   }
   await _prepareAssets(root, source, input, build, target);

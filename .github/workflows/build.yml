@@ -177,7 +177,7 @@ jobs:
         include:
           - runner: ubuntu-24.04
             target: linux-x64
-          - runner: ubuntu-24.04-arm
+          - runner: ubuntu-24.04
             target: linux-arm64
     runs-on: ${{ matrix.runner }}
     container: ubuntu:20.04
@@ -186,7 +186,7 @@ jobs:
       - name: Install baseline tools
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils pkg-config libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils clang build-essential xz-utils pkg-config libcurl4-openssl-dev libssl-dev libexpat1-dev zlib1g-dev gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
           curl --fail --location --retry 2 --output /tmp/git-2.50.1.tar.xz https://mirrors.edge.kernel.org/pub/software/scm/git/git-2.50.1.tar.xz
           echo '7e3e6c36decbd8f1eedd14d42db6674be03671c2204864befa2a41756c5c8fc4  /tmp/git-2.50.1.tar.xz' | sha256sum -c -
           tar -xf /tmp/git-2.50.1.tar.xz -C /tmp
@@ -212,3 +212,29 @@ jobs:
             dist/SHA256SUMS-${{ matrix.target }}.txt
           if-no-files-found: warn
           retention-days: 14
+
+  linux-arm64-consumer:
+    needs: linux
+    if: needs.linux.result == 'success'
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dart-lang/setup-dart@v1
+        with:
+          sdk: 3.13.2
+          architecture: arm64
+      - run: sudo apt-get update && sudo apt-get install -y cmake ninja-build patchelf binutils
+      - run: dart pub get
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+        with:
+          name: sdk-linux-arm64
+          path: dist
+      - name: Execute relocated SDK consumers
+        run: |
+          for ENGINE in hermes v8; do
+            mkdir -p "build/consumer/$ENGINE"
+            tar -xzf "dist/flax-engine-sdk-0.3.0-$ENGINE-linux-arm64.tar.gz" -C "build/consumer/$ENGINE"
+            dart run tool/check_sdk.dart "$ENGINE" "build/consumer/$ENGINE"
+          done
