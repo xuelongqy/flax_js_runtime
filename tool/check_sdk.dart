@@ -175,8 +175,6 @@ Future<void> _runAndroid(
     '-s',
     serial,
     'shell',
-    'sh',
-    '-c',
     'cd $remote && chmod 755 bin/sdk_consumer && '
         'LD_LIBRARY_PATH=$remote/sdk/lib bin/sdk_consumer',
   ]);
