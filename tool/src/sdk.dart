@@ -184,7 +184,26 @@ Future<List<String>> stageLibraries(
         runtime.any((file) => !isWindowsRuntimeLibrary(file.path))) {
       throw StateError('Missing or unknown Visual C++ runtime DLLs');
     }
-    files.addAll(runtime);
+    for (final file in runtime) {
+      final headers = await command('dumpbin', [
+        '/HEADERS',
+        file.path,
+      ], capture: true);
+      if (matchesWindowsArchitecture(headers, target)) {
+        files.add(file);
+      } else {
+        final machine = headers
+            .split('\n')
+            .firstWhere(
+              (line) => line.toLowerCase().contains('machine'),
+              orElse: () => 'unrecognized PE header',
+            )
+            .trim();
+        stdout.writeln(
+          'Excluded incompatible CRT DLL for ${target.id}: ${file.path} ($machine)',
+        );
+      }
+    }
     copyTree(
       Directory(p.join(root.path, 'tool', 'licenses')),
       Directory(p.join(stage.path, 'notices', 'microsoft-visual-cpp-runtime')),
@@ -277,6 +296,18 @@ Future<List<String>> stageLibraries(
 bool isWindowsRuntimeLibrary(String library) => RegExp(
   r'^(?:msvcp140(?:_[a-z0-9_]+)?|vcruntime140(?:_[a-z0-9_]+)?|concrt140|vccorlib140)\.dll$',
 ).hasMatch(p.basename(library).toLowerCase());
+
+bool matchesWindowsArchitecture(String headers, SdkTarget target) {
+  final machine = RegExp(
+    r'^\s*([a-f0-9]+)\s+machine\b([^\r\n]*)',
+    caseSensitive: false,
+    multiLine: true,
+  ).firstMatch(headers);
+  return machine?.group(1)?.toUpperCase() ==
+          (target.architecture == 'x64' ? '8664' : 'AA64') &&
+      (target.architecture != 'x64' ||
+          !machine!.group(2)!.toUpperCase().contains('ARM64X'));
+}
 
 void verifyWindowsLibraries(Map<String, dynamic> manifest) {
   if (manifest['runtimeLibraries'] is! List ||
@@ -646,11 +677,8 @@ Future<void> _verifyArchitecture(File file, SdkTarget target) async {
       '/HEADERS',
       file.path,
     ], capture: true);
-    final machine = target.architecture == 'x64'
-        ? '8664 machine'
-        : 'AA64 machine';
-    if (!headers.toUpperCase().contains(machine.toUpperCase())) {
-      throw StateError('Wrong PE machine in ${file.path}');
+    if (!matchesWindowsArchitecture(headers, target)) {
+      throw StateError('Wrong PE machine in ${file.path}:\n$headers');
     }
     return;
   }

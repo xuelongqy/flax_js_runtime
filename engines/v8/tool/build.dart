@@ -139,6 +139,11 @@ Future<void> main(List<String> args) async {
       [],
       environment: env,
     );
+    // Initialize the shared cache before gclient download hooks use gsutil.
+    await sdk.command(p.join(depot, 'vpython3.bat'), [
+      p.join(depot, 'gsutil.py'),
+      'version',
+    ], environment: env);
   }
   final buildSource = Directory(p.join(source, 'build'));
   for (final patch in patches) {

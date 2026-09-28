@@ -1,7 +1,7 @@
 # Microsoft Visual C++ runtime
 
-Windows SDKs include the release DLLs from the selected Visual Studio toolset's
-`VCToolsRedistDir/<architecture>/Microsoft.VC*.CRT` directory. These Microsoft
+Windows SDKs include the compatible release DLLs from the selected Visual Studio
+toolset's `VCToolsRedistDir/<architecture>/Microsoft.VC*.CRT` directory. These Microsoft
 files are subject to their own license terms, not this repository's MIT license.
 
 The original runtime license documents are included for both supported Visual

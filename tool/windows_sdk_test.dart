@@ -4,6 +4,20 @@ import 'src/sdk.dart';
 import 'src/target.dart';
 
 void main() {
+  final arm64 = sdkTargets['windows-arm64']!;
+  final x64 = sdkTargets['windows-x64']!;
+  for (final entry in <String, List<bool>>{
+    'AA64 machine (ARM64)': [true, false],
+    'AA64 machine (ARM64) (ARM64X)': [true, false],
+    '8664 machine (x64)': [false, true],
+    '8664 machine (x64) (ARM64X)': [false, false],
+    'A641 machine (ARM64EC)': [false, false],
+  }.entries) {
+    if (matchesWindowsArchitecture(entry.key, arm64) != entry.value[0] ||
+        matchesWindowsArchitecture(entry.key, x64) != entry.value[1]) {
+      throw StateError('Incorrect Windows process compatibility: ${entry.key}');
+    }
+  }
   final manifest = <String, dynamic>{
     'libraries': [
       'lib/hermesvm.dll',
