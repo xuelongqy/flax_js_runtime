@@ -48,7 +48,8 @@ find_package(FlaxEngineSDK CONFIG REQUIRED PATHS "\${CMAKE_CURRENT_SOURCE_DIR}/s
 add_executable(sdk_consumer main.cpp)
 target_link_libraries(sdk_consumer PRIVATE FlaxEngineSDK::$engine)
 ${engine == 'v8' ? 'target_compile_definitions(sdk_consumer PRIVATE FLAX_SDK_EXPECT_JIT=${expectedJit ? 1 : 0})' : ''}
-set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
+set_target_properties(sdk_consumer PROPERTIES MACOSX_BUNDLE FALSE
+  BUILD_WITH_INSTALL_RPATH YES
   INSTALL_RPATH "${target.isApple ? '@loader_path' : r'$ORIGIN'}/../sdk/lib")
 ''');
     final flags = <String>[];
