@@ -1,7 +1,15 @@
 #include <libplatform/libplatform.h>
 #include <v8.h>
+#include <atomic>
 #include <iostream>
 #include <memory>
+#include <string>
+
+#ifndef FLAX_SDK_EXPECT_JIT
+#error "The SDK consumer must specify the expected JIT mode"
+#endif
+
+static std::atomic<bool> probeCodeGenerated{false};
 
 v8::Intercepted GetAnswer(v8::Local<v8::Name> property,
                           const v8::PropertyCallbackInfo<v8::Value>& info) {
@@ -27,6 +35,16 @@ int main() {
     v8::HandleScope handles(isolate);
     auto context = v8::Context::New(isolate);
     v8::Context::Scope contextScope(context);
+    isolate->SetJitCodeEventHandler(v8::kJitCodeEventDefault,
+        [](const v8::JitCodeEvent *event) {
+          if (event->type == v8::JitCodeEvent::CODE_ADDED &&
+              event->code_type == v8::JitCodeEvent::JIT_CODE &&
+              event->name.str &&
+              std::string(event->name.str, event->name.len)
+                  .find("flaxSdkJitProbe") != std::string::npos) {
+            probeCodeGenerated.store(true);
+          }
+        });
     auto source = v8::String::NewFromUtf8Literal(isolate, "21 * 2");
     v8::Local<v8::Script> script;
     v8::Local<v8::Value> result;
@@ -44,11 +62,30 @@ int main() {
         object->Get(context, v8::String::NewFromUtf8Literal(isolate, "answer"))
             .ToLocal(&answer) &&
         answer->Int32Value(context).FromMaybe(0) == 42;
+    auto probe = v8::String::NewFromUtf8Literal(isolate, R"JS(
+      (() => {
+        function flaxSdkJitProbe(x) { return x + 1; }
+        let answer = 0;
+        for (let i = 0; i < 1000000; ++i) answer = flaxSdkJitProbe(i);
+        return answer;
+      })()
+    )JS");
+    success = success && v8::Script::Compile(context, probe).ToLocal(&script) &&
+        script->Run(context).ToLocal(&result) &&
+        result->Int32Value(context).FromMaybe(0) == 1000000;
+    if (probeCodeGenerated.load() != (FLAX_SDK_EXPECT_JIT != 0)) {
+      std::cerr << "Unexpected machine-code generation for "
+                << (FLAX_SDK_EXPECT_JIT ? "JIT" : "jitless") << " SDK\n";
+      success = false;
+    }
   }
   isolate->Dispose();
   delete allocator;
   v8::V8::Dispose();
   v8::V8::DisposePlatform();
-  if (success) std::cout << "V8 shared SDK: evaluation and interceptor passed\n";
+  if (success) {
+    std::cout << "V8 shared SDK: evaluation, interceptor and "
+              << (FLAX_SDK_EXPECT_JIT ? "JIT" : "jitless") << " passed\n";
+  }
   return success ? 0 : 1;
 }

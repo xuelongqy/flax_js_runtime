@@ -20,6 +20,11 @@ Future<void> main(List<String> args) async {
   if (manifest['engine'] != engine) throw StateError('Wrong SDK engine');
   final target = sdkTargets[manifest['target']];
   if (target == null) throw StateError('Unknown SDK target');
+  final expectedJit = target.os != 'ios';
+  final metadata = manifest['metadata'];
+  if (engine == 'v8' && (metadata is! Map || metadata['jit'] != expectedJit)) {
+    throw StateError('Incorrect V8 JIT configuration for ${target.id}');
+  }
   final adbSerial = _option(args, '--adb-serial=');
   final simulator = _option(args, '--simulator=');
   final compileOnly = args.contains('--compile-only');
@@ -42,6 +47,7 @@ project(sdk_consumer LANGUAGES CXX)
 find_package(FlaxEngineSDK CONFIG REQUIRED PATHS "\${CMAKE_CURRENT_SOURCE_DIR}/sdk/cmake" NO_DEFAULT_PATH NO_CMAKE_FIND_ROOT_PATH)
 add_executable(sdk_consumer main.cpp)
 target_link_libraries(sdk_consumer PRIVATE FlaxEngineSDK::$engine)
+${engine == 'v8' ? 'target_compile_definitions(sdk_consumer PRIVATE FLAX_SDK_EXPECT_JIT=${expectedJit ? 1 : 0})' : ''}
 set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
   INSTALL_RPATH "${target.isApple ? '@loader_path' : r'$ORIGIN'}/../sdk/lib")
 ''');
