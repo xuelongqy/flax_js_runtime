@@ -196,6 +196,12 @@ Future<void> main(List<String> args) async {
     await sdk.command('git', ['apply', file.path], directory: directory);
   }
   var gnArgs = _gnArgs(target);
+  if (target.os == 'android') {
+    // Match compilation headers to the NDK runtime used for linking and packaging.
+    gnArgs +=
+        'target_sysroot = ${jsonEncode(p.join(sdk.androidLlvmPrebuilt().path, 'sysroot'))}\n';
+    actualTools['androidNdk'] = '28.2.13676358';
+  }
   final localSdk = Platform.environment['FLAX_V8_MAC_SDK_PATH'];
   if (localSdk != null) {
     if (Platform.environment['FLAX_V8_ALLOW_UNPINNED_HOST_TOOLS'] != '1' ||
@@ -355,6 +361,7 @@ v8_enable_pointer_compression = ${target.os == 'windows'}
 symbol_level = 0
 treat_warnings_as_errors = false
 use_remoteexec = false
+${target.os == 'android' ? 'default_min_sdk_version = ${target.minimumVersion}\nandroid_ndk_api_level = ${target.minimumVersion}' : ''}
 ${target.os == 'macos' ? 'mac_deployment_target = "${target.minimumVersion}"' : ''}
 ${ios ? 'target_environment = "${target.appleSdk == 'iphoneos' ? 'device' : 'simulator'}"\nios_deployment_target = "${target.minimumVersion}"\nios_enable_code_signing = false' : ''}
 ''';
@@ -404,6 +411,7 @@ Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
     '-Wl,--whole-archive',
     archive.path,
     '-Wl,--no-whole-archive',
+    '-llog',
     '-Wl,--no-undefined',
     '-Wl,-soname,libv8.so',
     '-o',

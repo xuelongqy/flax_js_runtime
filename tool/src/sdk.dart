@@ -81,6 +81,13 @@ Directory sourceCache(Directory engine) => Directory(
 Directory androidLlvmPrebuilt() {
   final ndk = Platform.environment['ANDROID_NDK_HOME'];
   if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
+  final properties = File(p.join(ndk, 'source.properties')).readAsStringSync();
+  if (!RegExp(
+    r'^Pkg\.Revision\s*=\s*28\.2\.13676358\s*$',
+    multiLine: true,
+  ).hasMatch(properties)) {
+    throw StateError('Android SDK builds require NDK 28.2.13676358');
+  }
   final hosts = Directory(p.join(ndk, 'toolchains', 'llvm', 'prebuilt'))
       .listSync()
       .whereType<Directory>()
