@@ -319,6 +319,7 @@ bool _systemLibrary(String value, SdkTarget target) {
           'advapi32.dll',
           'dbghelp.dll',
           'ole32.dll',
+          'oleaut32.dll',
           'shell32.dll',
           'ucrtbase.dll',
           'winmm.dll',
