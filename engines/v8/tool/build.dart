@@ -271,7 +271,7 @@ Future<void> main(List<String> args) async {
   } else if (target.os == 'android') {
     await _linkAndroidMonolith(out, target);
   } else if (target.os == 'windows') {
-    await _linkWindowsMonolith(out, target);
+    await _linkWindowsMonolith(out, target, gn);
   }
   final libraries =
       out
@@ -424,9 +424,28 @@ Future<void> _linkAndroidMonolith(Directory out, SdkTarget target) async {
   ]);
 }
 
-Future<void> _linkWindowsMonolith(Directory out, SdkTarget target) async {
+Future<void> _linkWindowsMonolith(
+  Directory out,
+  SdkTarget target,
+  String gn,
+) async {
   final archive = File(p.join(out.path, 'obj', 'v8_monolith.lib'));
   if (!archive.existsSync()) throw StateError('Missing Windows V8 monolith');
+  final source = out.parent.parent;
+  // Static archives do not carry GN's compiler-rt link dependency.
+  final builtinsPath = await sdk.command(
+    gn,
+    ['desc', out.path, '//build/config/clang:compiler_builtins', 'libs'],
+    directory: source.path,
+    capture: true,
+  );
+  if (!builtinsPath.startsWith('//') || builtinsPath.contains('\n')) {
+    throw StateError('Expected one GN compiler-rt library: $builtinsPath');
+  }
+  final builtins = File(p.join(source.path, builtinsPath.substring(2)));
+  if (!builtins.existsSync()) {
+    throw StateError('Missing Windows compiler-rt library: ${builtins.path}');
+  }
   await sdk.command('link.exe', [
     '/NOLOGO',
     '/DLL',
@@ -435,6 +454,7 @@ Future<void> _linkWindowsMonolith(Directory out, SdkTarget target) async {
     '/OUT:${p.join(out.path, 'v8.dll')}',
     '/IMPLIB:${p.join(out.path, 'v8.lib')}',
     archive.path,
+    builtins.path,
     'dbghelp.lib',
     'winmm.lib',
     'ws2_32.lib',
