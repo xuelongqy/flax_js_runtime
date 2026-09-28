@@ -271,7 +271,7 @@ Future<void> main(List<String> args) async {
   } else if (target.os == 'android') {
     await _linkAndroidMonolith(out, target);
   } else if (target.os == 'windows') {
-    await _linkWindowsMonolith(out, target, gn);
+    await _linkWindowsMonolith(out, target, gn, env);
   }
   final libraries =
       out
@@ -428,6 +428,7 @@ Future<void> _linkWindowsMonolith(
   Directory out,
   SdkTarget target,
   String gn,
+  Map<String, String> environment,
 ) async {
   final archive = File(p.join(out.path, 'obj', 'v8_monolith.lib'));
   if (!archive.existsSync()) throw StateError('Missing Windows V8 monolith');
@@ -437,6 +438,7 @@ Future<void> _linkWindowsMonolith(
     gn,
     ['desc', out.path, '//build/config/clang:compiler_builtins', 'libs'],
     directory: source.path,
+    environment: environment,
     capture: true,
   );
   if (!builtinsPath.startsWith('//') || builtinsPath.contains('\n')) {

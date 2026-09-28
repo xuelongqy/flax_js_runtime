@@ -219,6 +219,13 @@ jobs:
         with:
           sdk: 3.13.2
           architecture: ${{ runner.arch == 'ARM64' && 'arm64' || 'x64' }}
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
+        with:
+          node-version: '26.10.0'
+          package-manager-cache: false
+      - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
+        run: node --version
       - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
         run: dart pub get
       - if: inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target)
@@ -244,7 +251,7 @@ jobs:
       - name: Install consumer build tools
         run: |
           apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils build-essential
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils build-essential xz-utils
           curl --fail --location --retry 2 --output /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
           echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-23 main' > /etc/apt/sources.list.d/llvm.list
           apt-get update
@@ -257,6 +264,11 @@ jobs:
         with:
           sdk: 3.13.2
           architecture: arm64
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: '26.10.0'
+          package-manager-cache: false
+      - run: node --version
       - run: dart pub get
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
