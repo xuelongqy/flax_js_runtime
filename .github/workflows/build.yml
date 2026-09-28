@@ -239,7 +239,17 @@ jobs:
     needs: linux
     if: needs.linux.result == 'success' && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, 'linux-arm64'))
     runs-on: ubuntu-24.04-arm
+    container: ubuntu:20.04
     steps:
+      - name: Install consumer build tools
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y git curl ca-certificates unzip python3 python3-pip ninja-build patchelf binutils build-essential
+          curl --fail --location --retry 2 --output /etc/apt/trusted.gpg.d/apt.llvm.org.asc https://apt.llvm.org/llvm-snapshot.gpg.key
+          echo 'deb https://apt.llvm.org/focal/ llvm-toolchain-focal-23 main' > /etc/apt/sources.list.d/llvm.list
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y clang-23
+          python3 -m pip install 'cmake>=3.24,<5'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
@@ -247,14 +257,6 @@ jobs:
         with:
           sdk: 3.13.2
           architecture: arm64
-      - name: Install consumer build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y cmake ninja-build patchelf binutils curl ca-certificates
-          curl --fail --location --retry 2 https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
-          echo 'deb https://apt.llvm.org/noble/ llvm-toolchain-noble-23 main' | sudo tee /etc/apt/sources.list.d/llvm.list
-          sudo apt-get update
-          sudo apt-get install -y clang-23
       - run: dart pub get
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
         with:
