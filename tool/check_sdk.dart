@@ -96,6 +96,13 @@ set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
       ...flags,
     ]);
     await command('cmake', ['--build', '${temp.path}/bin']);
+    if (target.os == 'windows') {
+      copyTree(
+        Directory(p.join(sdk.path, 'lib')),
+        Directory(p.join(temp.path, 'bin')),
+        include: (file) => p.extension(file.path).toLowerCase() == '.dll',
+      );
+    }
     final relocated = Directory('${temp.path}-relocated');
     temp.renameSync(relocated.path);
     try {
@@ -118,16 +125,7 @@ set_target_properties(sdk_consumer PROPERTIES BUILD_WITH_INSTALL_RPATH YES
             executable.path,
           ]);
         } else {
-          await command(
-            executable.path,
-            [],
-            environment: target.os == 'windows'
-                ? {
-                    'PATH':
-                        '${p.join(relocated.path, 'sdk', 'lib')};${Platform.environment['PATH'] ?? ''}',
-                  }
-                : null,
-          );
+          await command(executable.path, []);
         }
       }
     } finally {

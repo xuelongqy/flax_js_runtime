@@ -66,12 +66,7 @@ Future<void> main(List<String> args) async {
     throw StateError('Incomplete dynamic dependency list');
   }
   if (target.os == 'windows') {
-    final imports = Map<String, String>.from(
-      manifest['importLibraries'] as Map,
-    );
-    if (libraries.any((library) => !files.containsKey(imports[library]))) {
-      throw StateError('Missing Windows import library');
-    }
+    sdk.verifyWindowsLibraries(manifest);
   }
   stdout.writeln('Verified ${args[0]}/${target.id} SDK archive contents.');
 }

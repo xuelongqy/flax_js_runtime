@@ -17,3 +17,4 @@ jobs:
           sdk: 3.13.2
       - run: dart pub get
       - run: dart run tool/verify.dart
+      - run: dart run tool/windows_sdk_test.dart

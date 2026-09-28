@@ -173,7 +173,7 @@ Future<void> _prepareAssets(
   if (!library.existsSync()) {
     throw StateError('Hermes shared library is missing: ${library.path}');
   }
-  final libraries = await sdk.stageLibraries(stage, [library], target);
+  final libraries = await sdk.stageLibraries(root, stage, [library], target);
   sdk.copyHeaders(
     Directory(p.join(upstreamSource.path, 'public')),
     Directory(p.join(stage.path, 'include')),

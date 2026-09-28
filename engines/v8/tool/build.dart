@@ -285,7 +285,7 @@ Future<void> main(List<String> args) async {
     throw StateError('V8 build did not produce required shared libraries');
   }
   final stage = sdk.newStage(root, 'v8', target);
-  final staged = await sdk.stageLibraries(stage, libraries, target);
+  final staged = await sdk.stageLibraries(root, stage, libraries, target);
   sdk.copyHeaders(
     Directory(p.join(source, 'include')),
     Directory(p.join(stage.path, 'include')),

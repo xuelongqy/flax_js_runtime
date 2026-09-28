@@ -144,11 +144,45 @@ Directory newStage(Directory root, String engine, SdkTarget target) {
 }
 
 Future<List<String>> stageLibraries(
+  Directory root,
   Directory stage,
   List<File> inputs,
   SdkTarget target,
 ) async {
   final files = [...inputs];
+  if (target.os == 'windows') {
+    final redist = Platform.environment['VCToolsRedistDir'];
+    if (redist == null) throw StateError('VCToolsRedistDir is required');
+    final directories = Directory(p.join(redist, target.architecture))
+        .listSync()
+        .whereType<Directory>()
+        .where(
+          (dir) =>
+              RegExp(r'^Microsoft\.VC\d+\.CRT$').hasMatch(p.basename(dir.path)),
+        )
+        .toList();
+    if (directories.length != 1) {
+      throw StateError(
+        'Expected one ${target.architecture} Visual C++ runtime',
+      );
+    }
+    final runtime =
+        directories.single
+            .listSync()
+            .whereType<File>()
+            .where((file) => p.extension(file.path).toLowerCase() == '.dll')
+            .toList()
+          ..sort((a, b) => a.path.compareTo(b.path));
+    if (runtime.isEmpty ||
+        runtime.any((file) => !isWindowsRuntimeLibrary(file.path))) {
+      throw StateError('Missing or unknown Visual C++ runtime DLLs');
+    }
+    files.addAll(runtime);
+    copyTree(
+      Directory(p.join(root.path, 'tool', 'licenses')),
+      Directory(p.join(stage.path, 'notices', 'microsoft-visual-cpp-runtime')),
+    );
+  }
   if (target.os == 'android') {
     final triple = switch (target.architecture) {
       'arm32' => 'arm-linux-androideabi',
@@ -186,7 +220,7 @@ Future<List<String>> stageLibraries(
       ..parent.createSync(recursive: true);
     file.copySync(out.path);
     libraries.add(relative);
-    if (target.os == 'windows') {
+    if (target.os == 'windows' && !isWindowsRuntimeLibrary(name)) {
       final base = p.basenameWithoutExtension(name);
       final importLibrary = [
         File(p.join(file.parent.path, '$base.lib')),
@@ -233,6 +267,36 @@ Future<List<String>> stageLibraries(
   return libraries;
 }
 
+bool isWindowsRuntimeLibrary(String library) => RegExp(
+  r'^(?:msvcp140(?:_[a-z0-9_]+)?|vcruntime140(?:_[a-z0-9_]+)?|concrt140|vccorlib140)\.dll$',
+).hasMatch(p.basename(library).toLowerCase());
+
+void verifyWindowsLibraries(Map<String, dynamic> manifest) {
+  if (manifest['runtimeLibraries'] is! List ||
+      manifest['importLibraries'] is! Map) {
+    throw StateError('Missing Windows runtime or import library list');
+  }
+  final libraries = (manifest['libraries'] as List).cast<String>().toSet();
+  final runtime = (manifest['runtimeLibraries'] as List).cast<String>();
+  final expectedRuntime = libraries.where(isWindowsRuntimeLibrary).toSet();
+  final names = expectedRuntime
+      .map((library) => p.basename(library).toLowerCase())
+      .toSet();
+  final imports = Map<String, String>.from(manifest['importLibraries'] as Map);
+  final engines = libraries.difference(expectedRuntime);
+  final files = manifest['files'] as Map;
+  if (engines.isEmpty ||
+      runtime.length != expectedRuntime.length ||
+      runtime.toSet().length != runtime.length ||
+      runtime.toSet().difference(expectedRuntime).isNotEmpty ||
+      !names.containsAll(['msvcp140.dll', 'vcruntime140.dll']) ||
+      imports.length != engines.length ||
+      imports.keys.toSet().difference(engines).isNotEmpty ||
+      engines.any((library) => !files.containsKey(imports[library]))) {
+    throw StateError('Incomplete Windows runtime or import libraries');
+  }
+}
+
 bool _systemLibrary(String value, SdkTarget target) {
   if (target.isApple) {
     return value.startsWith('/usr/lib/') ||
@@ -250,9 +314,6 @@ bool _systemLibrary(String value, SdkTarget target) {
           'ole32.dll',
           'shell32.dll',
           'ucrtbase.dll',
-          'vcruntime140.dll',
-          'vcruntime140_1.dll',
-          'msvcp140.dll',
           'winmm.dll',
           'ws2_32.dll',
           'icu.dll',
@@ -375,6 +436,8 @@ endif()''');
   }
   final targets = <String>[];
   for (var i = 0; i < libraries.length; i++) {
+    if (sdkTarget.os == 'windows' && isWindowsRuntimeLibrary(libraries[i]))
+      continue;
     final target = 'FlaxEngineSDK::${engine}_$i';
     targets.add(target);
     final name = p.basename(libraries[i]);
@@ -454,8 +517,11 @@ Future<void> finishSdk(
     if (target.os == 'windows')
       'importLibraries': {
         for (final library in libraries)
-          library: 'lib/${p.basenameWithoutExtension(library)}.lib',
+          if (!isWindowsRuntimeLibrary(library))
+            library: 'lib/${p.basenameWithoutExtension(library)}.lib',
       },
+    if (target.os == 'windows')
+      'runtimeLibraries': libraries.where(isWindowsRuntimeLibrary).toList(),
     'cmakeConfig': 'cmake/FlaxEngineSDKConfig.cmake',
     'cmakeTarget': 'FlaxEngineSDK::$engine',
     'metadata': metadata,
@@ -494,6 +560,7 @@ Future<void> verifySdk(Directory stage) async {
   if (libraries.isEmpty || !files.containsKey(manifest['cmakeConfig'])) {
     throw StateError('Incomplete SDK manifest');
   }
+  if (target.os == 'windows') verifyWindowsLibraries(manifest);
   final names = libraries.map(p.basename).toSet();
   for (final library in libraries) {
     if (!files.containsKey(library))
@@ -512,14 +579,6 @@ Future<void> verifySdk(Directory stage) async {
             (name) => name.toLowerCase() == p.basename(dep).toLowerCase(),
           )) {
         throw StateError('Unbundled dependency in $library: $dep');
-      }
-    }
-    if (target.os == 'windows') {
-      final imports = Map<String, String>.from(
-        manifest['importLibraries'] as Map,
-      );
-      if (!files.containsKey(imports[library])) {
-        throw StateError('Missing import library for $library');
       }
     }
     final exports = target.os == 'windows'
