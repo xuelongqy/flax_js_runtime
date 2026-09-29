@@ -201,6 +201,8 @@ Future<void> main(List<String> args) async {
     await sdk.command('git', ['apply', file.path], directory: directory);
   }
   var gnArgs = _gnArgs(target);
+  gnArgs +=
+      'cc_wrapper = ${jsonEncode(Platform.environment['FLAX_V8_CC_WRAPPER'] ?? '')}\n';
   if (target.os == 'android') {
     // Match compilation headers to the NDK runtime used for linking and packaging.
     gnArgs +=
