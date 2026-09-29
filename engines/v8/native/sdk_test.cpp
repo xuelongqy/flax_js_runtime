@@ -22,6 +22,11 @@ v8::Intercepted GetAnswer(v8::Local<v8::Name> property,
 }
 
 int main() {
+#if FLAX_SDK_EXPECT_JIT
+  // Request synchronous optimization below, as upstream V8 compiler tests do.
+  // A hot loop alone can finish before background compilation emits code.
+  v8::V8::SetFlagsFromString("--allow-natives-syntax");
+#endif
   auto platform = v8::platform::NewDefaultPlatform();
   v8::V8::InitializePlatform(platform.get());
   if (!v8::V8::Initialize()) return 1;
@@ -65,6 +70,17 @@ int main() {
     auto probe = v8::String::NewFromUtf8Literal(isolate, R"JS(
       (() => {
         function flaxSdkJitProbe(x) { return x + 1; }
+    )JS"
+#if FLAX_SDK_EXPECT_JIT
+    R"JS(
+        %PrepareFunctionForOptimization(flaxSdkJitProbe);
+        flaxSdkJitProbe(0);
+        flaxSdkJitProbe(1);
+        %OptimizeFunctionOnNextCall(flaxSdkJitProbe);
+        flaxSdkJitProbe(2);
+    )JS"
+#endif
+    R"JS(
         let answer = 0;
         for (let i = 0; i < 1000000; ++i) answer = flaxSdkJitProbe(i);
         return answer;
