@@ -205,7 +205,7 @@ Future<void> main(List<String> args) async {
     // Match compilation headers to the NDK runtime used for linking and packaging.
     gnArgs +=
         'target_sysroot = ${jsonEncode(p.join(sdk.androidLlvmPrebuilt().path, 'sysroot'))}\n';
-    actualTools['androidNdk'] = '28.2.13676358';
+    actualTools['androidNdk'] = '30.0.16248370';
   }
   final localSdk = Platform.environment['FLAX_V8_MAC_SDK_PATH'];
   if (localSdk != null) {

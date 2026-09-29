@@ -83,10 +83,10 @@ Directory androidLlvmPrebuilt() {
   if (ndk == null) throw StateError('ANDROID_NDK_HOME is required');
   final properties = File(p.join(ndk, 'source.properties')).readAsStringSync();
   if (!RegExp(
-    r'^Pkg\.Revision\s*=\s*28\.2\.13676358\s*$',
+    r'^Pkg\.Revision\s*=\s*30\.0\.16248370\s*$',
     multiLine: true,
   ).hasMatch(properties)) {
-    throw StateError('Android SDK builds require NDK 28.2.13676358');
+    throw StateError('Android SDK builds require NDK 30.0.16248370');
   }
   final hosts = Directory(p.join(ndk, 'toolchains', 'llvm', 'prebuilt'))
       .listSync()

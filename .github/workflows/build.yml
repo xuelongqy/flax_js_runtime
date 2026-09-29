@@ -59,9 +59,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y cmake ninja-build patchelf binutils
           set +o pipefail
-          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'ndk;28.2.13676358'
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --install 'ndk;30.0.16248370'
           set -o pipefail
-          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/28.2.13676358" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_HOME=$ANDROID_HOME/ndk/30.0.16248370" >> "$GITHUB_ENV"
       - name: Check Windows build tools
         if: startsWith(matrix.group, 'windows-')
         shell: pwsh
