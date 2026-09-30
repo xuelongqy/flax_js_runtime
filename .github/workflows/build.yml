@@ -100,7 +100,7 @@ jobs:
           if (-not (Test-Path $sdkHeaders)) { throw "Windows SDK $sdk is missing" }
           cmd /c "`"$dev`" -arch=$arch -winsdk=$sdk && dart run tool/ci_build.dart --targets=${{ matrix.targets }}"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'macos-arm64')
         with:
           name: sdk-macos-arm64
@@ -109,7 +109,7 @@ jobs:
             dist/SHA256SUMS-macos-arm64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'macos-x64')
         with:
           name: sdk-macos-x64
@@ -118,7 +118,7 @@ jobs:
             dist/SHA256SUMS-macos-x64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'ios-device-arm64')
         with:
           name: sdk-ios-device-arm64
@@ -127,7 +127,7 @@ jobs:
             dist/SHA256SUMS-ios-device-arm64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'ios-simulator-arm64')
         with:
           name: sdk-ios-simulator-arm64
@@ -136,7 +136,7 @@ jobs:
             dist/SHA256SUMS-ios-simulator-arm64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && !inputs.skip_macos && contains(matrix.targets, 'ios-simulator-x64')
         with:
           name: sdk-ios-simulator-x64
@@ -145,7 +145,7 @@ jobs:
             dist/SHA256SUMS-ios-simulator-x64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && contains(matrix.targets, 'windows-x64')
         with:
           name: sdk-windows-x64
@@ -154,7 +154,7 @@ jobs:
             dist/SHA256SUMS-windows-x64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && contains(matrix.targets, 'windows-arm64')
         with:
           name: sdk-windows-arm64
@@ -163,7 +163,7 @@ jobs:
             dist/SHA256SUMS-windows-arm64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && contains(matrix.targets, 'android-arm32')
         with:
           name: sdk-android-arm32
@@ -172,7 +172,7 @@ jobs:
             dist/SHA256SUMS-android-arm32.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && contains(matrix.targets, 'android-arm64')
         with:
           name: sdk-android-arm64
@@ -181,7 +181,7 @@ jobs:
             dist/SHA256SUMS-android-arm64.txt
           if-no-files-found: warn
           retention-days: 14
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && contains(matrix.targets, 'android-x64')
         with:
           name: sdk-android-x64
@@ -252,7 +252,7 @@ jobs:
         env:
           FLAX_BUILD_JOBS: '4'
         run: dart run tool/ci_build.dart --targets=${{ matrix.target }}
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         if: always() && (inputs.diagnostic_groups == '' || contains(inputs.diagnostic_groups, matrix.target))
         with:
           name: sdk-${{ matrix.target }}
@@ -290,7 +290,7 @@ jobs:
           package-manager-cache: false
       - run: node --version
       - run: dart pub get
-      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: sdk-linux-arm64
           path: dist
