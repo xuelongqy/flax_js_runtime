@@ -68,6 +68,8 @@ Future<void> main(List<String> args) async {
             ),
           );
           if (out.existsSync()) out.deleteSync(recursive: true);
+          // sccache may retain compiler paths through this output directory.
+          out.createSync();
         } else {
           final out = Directory(
             p.join('engines', 'hermes', 'build', 'native', id),
