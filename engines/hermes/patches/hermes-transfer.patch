@@ -90,3 +90,47 @@
  /// @}
  } // namespace vm
  } // namespace hermes
+--- a/lib/VM/JSLib/TypedArray.cpp
++++ b/lib/VM/JSLib/TypedArray.cpp
+@@ -183,6 +183,9 @@
+     Runtime &runtime,
+     Handle<JSTypedArray<T, C>> self,
+     Handle<JSTypedArrayBase> other) {
++  if (!other->attached(runtime)) {
++    return runtime.raiseTypeError("Cannot copy a detached TypedArray");
++  }
+   if (JSTypedArray<T, C>::createBuffer(runtime, self, other->getLength()) ==
+       ExecutionStatus::EXCEPTION) {
+     return ExecutionStatus::EXCEPTION;
+@@ -217,6 +220,19 @@
+         "[length]): if byteOffset is specified, it "
+         "must be evenly divisible by the element size");
+   }
++  uint64_t newLength = 0;
++  if (!length->isUndefined()) {
++    auto res2 = toIndex(runtime, length);
++    if (res2 == ExecutionStatus::EXCEPTION) {
++      return ExecutionStatus::EXCEPTION;
++    }
++    newLength = res2->getNumberAs<uint64_t>();
++  }
++  // Offset and length conversion can execute JS and detach the source.
++  if (!buffer->attached()) {
++    return runtime.raiseTypeError(
++        "Cannot construct TypedArray on a detached ArrayBuffer");
++  }
+   auto bufferByteLength = buffer->size();
+   uint64_t newByteLength = 0;
+   if (length->isUndefined()) {
+@@ -234,11 +250,6 @@
+     }
+     newByteLength = bufferByteLength - offset;
+   } else {
+-    auto res2 = toLength(runtime, length);
+-    if (res2 == ExecutionStatus::EXCEPTION) {
+-      return ExecutionStatus::EXCEPTION;
+-    }
+-    uint64_t newLength = res2->getNumberAs<uint64_t>();
+     newByteLength = newLength * sizeof(T);
+     if (offset + newByteLength > bufferByteLength) {
+       return runtime.raiseRangeError(

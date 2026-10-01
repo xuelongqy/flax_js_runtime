@@ -12,7 +12,7 @@
     "patches": [
       {
         "file": "hermes-transfer.patch",
-        "sha256": "3094cf33ff83201997e359922034599eafe7667373ee2aa2d22ad8ebafc2ad48"
+        "sha256": "15b8be251c0b2079325e89b86d46057bfa3b34f8d52c1075e9b562c8417abf76"
       },
       {
         "file": "hermes-windows-shared.patch",
