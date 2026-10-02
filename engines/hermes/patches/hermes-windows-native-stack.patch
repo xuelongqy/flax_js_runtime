@@ -1,0 +1,59 @@
+diff --git a/lib/Support/OSCompatWindows.cpp b/lib/Support/OSCompatWindows.cpp
+--- a/lib/Support/OSCompatWindows.cpp
++++ b/lib/Support/OSCompatWindows.cpp
+@@ -443,6 +443,7 @@
+   // If we fail to determine the actual size of the guard region, fall back to
+   // 12KB or one page, whichever is larger.
+   size_t guardSz = std::max<size_t>(12 * 1024, pageSz);
++  size_t reservedPageSz = pageSz;
+ 
+   // Try up to two times to get the size of the guard region. Note that we have
+   // to try multiple times, because a call to VirtualQuery may use additional
+@@ -450,6 +451,14 @@
+   for (size_t i = 0; i < 2; ++i) {
+     // First obtain the reserved memory region below the guard region.
+     VirtualQuery(stackLow, &info, sizeof(info));
++    // Hosts such as Dart may commit the entire stack and remove its guard.
++    // In that case there is no reserved region; querying beyond this region
++    // would inspect a different allocation, not this thread's stack.
++    if (info.State == MEM_COMMIT) {
++      guardSz = (info.Protect & PAGE_GUARD) ? info.RegionSize : 0;
++      reservedPageSz = 0;
++      break;
++    }
+     assert(info.State == MEM_RESERVE && "Reserved memory not found");
+     auto reservedSz = info.RegionSize;
+ 
+@@ -488,9 +497,8 @@
+   SetThreadStackGuarantee(&guarantee);
+   sz -= guarantee;
+ 
+-  // We know that there will always be at least one reserved page even when the
+-  // stack is exhausted, subtract it.
+-  sz -= pageSz;
++  // A growing stack retains a reserved page; a fully committed stack does not.
++  sz -= reservedPageSz;
+ 
+   return {stackHigh, sz};
+ }
+diff --git a/lib/VM/Runtime.cpp b/lib/VM/Runtime.cpp
+--- a/lib/VM/Runtime.cpp
++++ b/lib/VM/Runtime.cpp
+@@ -1305,11 +1305,12 @@
+       /*sourceURL*/ "InternalBytecode.js",
+       makeNullHandle<Environment>());
+   // It is a fatal error for the internal bytecode to throw an exception.
+-  assert(
+-      res != ExecutionStatus::EXCEPTION && "Internal bytecode threw exception");
+-  assert(
+-      res->isObject() &&
+-      "Completion value of internal bytecode must be an object");
++  if (LLVM_UNLIKELY(res == ExecutionStatus::EXCEPTION)) {
++    hermes_fatal("Internal bytecode threw exception");
++  }
++  if (LLVM_UNLIKELY(!res->isObject())) {
++    hermes_fatal("Completion value of internal bytecode must be an object");
++  }
+ 
+   return makeHandle<JSObject>(*res);
+ #endif

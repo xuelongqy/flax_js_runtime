@@ -29,6 +29,10 @@
       {
         "file": "hermes-gcc-noinline-linkage.patch",
         "sha256": "80dbae7c689381cadb31dcead01cba239a9acad0969d5ac57c494d3ba96fce66"
+      },
+      {
+        "file": "hermes-windows-native-stack.patch",
+        "sha256": "4fbc18aec4eb98d462553bb908ad7532cef5192ac1bc4801f8da2c340e190385"
       }
     ]
   },

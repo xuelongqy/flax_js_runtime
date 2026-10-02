@@ -49,6 +49,7 @@ Future<void> main(List<String> args) async {
     await _run('tar', ['-xzf', archive.path, '-C', cache.path]);
     for (final patch in patches) {
       await _run('git', [
+        '--work-tree=${source.path}',
         'apply',
         '--unsafe-paths',
         p.join(package.path, 'patches', patch['file'] as String),
